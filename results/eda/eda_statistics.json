@@ -1,0 +1,54 @@
+{
+    "Statistical Measures": {
+        "Returns": {
+            "Mean": 0.0004150078903328748,
+            "Median": 0.00086772639000495,
+            "Std Dev": 0.008428374583578173,
+            "Skewness": -0.3733582227941004,
+            "Excess Kurtosis": 2.7111837259507823,
+            "Kurtosis": 5.711183725950782
+        },
+        "Log Returns": {
+            "Mean": 0.00037935101797997736,
+            "Median": 0.0008673497170293999,
+            "Std Dev": 0.008439587390044927,
+            "Skewness": -0.4312505024054353,
+            "Excess Kurtosis": 2.7892321440480616,
+            "Kurtosis": 5.789232144048062
+        }
+    },
+    "ADF Test Statistics": {
+        "Price": {
+            "Test Statistic": -1.6003162123689365,
+            "p-value": 0.48343462322289044
+        },
+        "Returns": {
+            "Test Statistic": -30.693359155508684,
+            "p-value": 0.0
+        },
+        "Log Returns": {
+            "Test Statistic": -30.663151574986806,
+            "p-value": 0.0
+        }
+    },
+    "ARCH Test Statistics": {
+        "Returns": {
+            "LM Statistic": 151.70825344670712,
+            "p-value": 1.6591190896803208e-27
+        },
+        "Log Returns": {
+            "LM Statistic": 149.6157740145013,
+            "p-value": 4.471518889855299e-27
+        }
+    },
+    "Ljung-Box Test Statistics": {
+        "Returns": {
+            "LB Statistic": 56.94283351109702,
+            "p-value": 0.04002302796699079
+        },
+        "Log Returns": {
+            "LB Statistic": 56.897044382413895,
+            "p-value": 0.040373848544431684
+        }
+    }
+}

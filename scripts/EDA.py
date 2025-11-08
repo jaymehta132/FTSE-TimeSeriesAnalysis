@@ -4,10 +4,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
 import os 
+import json
 import yaml
 from src.utils import setupLogging, loadConfig, seedEverything
 from scipy import stats
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.stats.diagnostic import het_arch, acorr_ljungbox
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +77,9 @@ def main():
 
 
     # Mean, Median, Std, Skewness, Kurtosis for Returns and Log Returns
-    statistics = {}
+    statistical_measures = {}
     for col in ['Returns', 'Log Returns']:
-        statistics[col] = {
+        statistical_measures[col] = {
             'Mean': float(np.mean(data[col])),
             'Median': float(np.median(data[col])),
             'Std Dev': float(np.std(data[col])),
@@ -84,12 +87,7 @@ def main():
             'Excess Kurtosis': float(data[col].kurtosis()),
             'Kurtosis': float(data[col].kurtosis()) + 3
         }
-        logger.info(f"Statistics for {col}: {statistics[col]}")
-    # Save statistics to a YAML file
-    statsPath = os.path.join(edaResultsDir, 'eda_statistics.yaml')
-    with open(statsPath, 'w') as file:
-        yaml.dump(statistics, file)
-    logger.info(f"EDA statistics saved to {statsPath}.")
+        logger.info(f"Statistics for {col}: {statistical_measures[col]}")
 
     # Q-Q Plots vs Normal Distribution
     for col in ['Returns', 'Log Returns']:
@@ -126,7 +124,84 @@ def main():
         logger.info(f"ACF and PACF plots of {col} saved to {acfPacfPath}.")
         # plt.show()
 
-    
+    # ACF PACF plots for Squared Returns and Squared Log Returns
+    for col in ['Returns', 'Log Returns']:
+        squared_col = f'Squared {col}'
+        data[squared_col] = data[col] ** 2
+        plt.figure(figsize=(14, 6))
+        
+        plt.subplot(1, 2, 1)
+        plot_acf(data[squared_col], ax=plt.gca(), lags=40)
+        plt.title(f'ACF of {squared_col}')
+        plt.subplot(1, 2, 2)
+        plot_pacf(data[squared_col], ax=plt.gca(), lags=40, method='ywm')
+        plt.title(f'PACF of {squared_col}')
+        acfPacfPath = os.path.join(edaResultsDir, f'acf_pacf_{squared_col.lower().replace(" ", "_")}.png')
+        plt.savefig(acfPacfPath)
+        logger.info(f"ACF and PACF plots of {squared_col} saved to {acfPacfPath}.")
+        # plt.show()
+
+    # Check for stationarity of prices as well as returns using ADF test
+    adf_test_statistics = {}
+    for col in ['Price', 'Returns', 'Log Returns']:
+        result = adfuller(data[col].dropna())
+        logger.info(f"ADF Test for {col}:")
+        logger.info(f"  Test Statistic: {result[0]}")
+        logger.info(f"  p-value: {result[1]}")
+        logger.info(f"  Critical Values: {result[4]}")
+        adf_test_statistics[col] = {
+            "Test Statistic": float(result[0]),
+            "p-value": float(result[1]),
+            # "Critical Values": result[4]
+        }
+        if result[1] < 0.05:
+            logger.info(f"  Conclusion: {col} is stationary (reject H0)")
+        else:
+            logger.info(f"  Conclusion: {col} is non-stationary (fail to reject H0)")
+
+    # Test for Heteroskedasticity using ARCH test
+    arch_test_statistics = {}
+    for col in ['Returns', 'Log Returns']:
+        archTest = het_arch(data[col].dropna())
+        logger.info(f"ARCH Test for {col}:")
+        logger.info(f"  LM Statistic: {archTest[0]}")
+        logger.info(f"  p-value: {archTest[1]}")
+        arch_test_statistics[col] = {
+            "LM Statistic": float(archTest[0]),
+            "p-value": float(archTest[1])
+        }
+        if archTest[1] < 0.05:
+            logger.info(f"  Conclusion: {col} exhibits heteroskedasticity (reject H0)")
+        else:
+            logger.info(f"  Conclusion: {col} does not exhibit heteroskedasticity (fail to reject H0)")
+
+    # Ljung-Box test for autocorrelation
+    ljung_box_test_statistics = {}
+    for col in ['Returns', 'Log Returns']:
+        ljung_box = acorr_ljungbox(data[col].dropna(), lags=[40], return_df=True)
+        logger.info(f"Ljung-Box Test for {col}:")
+        logger.info(f"  LB Statistic: {ljung_box['lb_stat'].values[0]}")
+        logger.info(f"  p-value: {ljung_box['lb_pvalue'].values[0]}")
+        ljung_box_test_statistics[col] = {
+            "LB Statistic": float(ljung_box['lb_stat'].values[0]),
+            "p-value": float(ljung_box['lb_pvalue'].values[0])
+        }
+        if ljung_box['lb_pvalue'].values[0] < 0.05:
+            logger.info(f"  Conclusion: {col} exhibits autocorrelation (reject H0)")
+        else:
+            logger.info(f"  Conclusion: {col} does not exhibit autocorrelation (fail to reject H0)")
+
+    statistics = {}
+    statistics['Statistical Measures'] = statistical_measures
+    statistics['ADF Test Statistics'] = adf_test_statistics
+    statistics['ARCH Test Statistics'] = arch_test_statistics
+    statistics['Ljung-Box Test Statistics'] = ljung_box_test_statistics
+
+    # Save statistics to a YAML file
+    statsPath = os.path.join(edaResultsDir, 'eda_statistics.json')
+    with open(statsPath, 'w') as file:
+        json.dump(statistics, file, indent=4)
+    logger.info(f"EDA statistics saved to {statsPath}.")
 
     logger.info("Exploratory Data Analysis (EDA) completed.")
 
