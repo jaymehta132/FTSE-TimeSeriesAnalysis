@@ -91,34 +91,5 @@ def main():
     data.to_csv(preprocessedDataPath, index=False)
     logger.info(f"Processed data saved to {preprocessedDataPath}")
 
-
-    resultsDir = config["results"]["resultsDir"]
-    os.makedirs(resultsDir, exist_ok=True)
-
-
-    # Plot the Price and Returns
-    plt.figure(figsize=(14, 7))
-    sns.lineplot(data=data, x='Date', y='Price', label='Price')
-    # sns.lineplot(data=data, x='Date', y='Returns', label='Returns')
-    plt.title('Price Over Time')
-    plt.legend()
-    plt.savefig(os.path.join(resultsDir, 'price_over_time.png'))
-    # plt.show()
-
-    plt.figure(figsize=(14, 7))
-    sns.lineplot(data=data, x='Date', y='Log Returns', label='Log Returns', color='orange')
-    plt.title('Log Returns Over Time')
-    plt.legend()
-    plt.savefig(os.path.join(resultsDir, 'log_returns_over_time.png'))
-    # plt.show()
-
-    plt.figure(figsize=(14,7))
-    sns.histplot(data['Log Returns'], bins=100, kde=True)
-    plt.title('Log Returns Distribution')
-    plt.savefig(os.path.join(resultsDir, 'log_returns_distribution.png'))
-    # plt.show()
-
-    logger.info("Data preprocessing completed.")
-
 if __name__ == "__main__":
     main()

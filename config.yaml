@@ -3,8 +3,11 @@ data:
   preprocessedDataPath: "data/FTSE_PreprocessedData.csv"
 
 results:
-  resultsDir: "results/"
+  edaResultsDir: "results/eda"
+  analysisResultsDir: "results/analysis"
 
 dates:
   startDate: "2005-01-01"
   endDate: "2007-12-31"
+
+seed: 42
