@@ -11,3 +11,10 @@ dates:
   endDate: "2007-12-31"
 
 seed: 42
+
+model:
+  arma_garch:
+    p: 1
+    q: 1
+    dist: "t"
+    lags: 0
