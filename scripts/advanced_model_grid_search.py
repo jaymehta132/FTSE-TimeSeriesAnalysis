@@ -26,8 +26,8 @@ sns.set(style="whitegrid")
 warnings.filterwarnings("ignore")
 
 # ---------- Config ----------
-DATA_PATH = "data/FTSE_PreprocessedData.csv"
-OUT_DIR = "model_grid_advanced_outputs"
+DATA_PATH = "../data/FTSE_PreprocessedData.csv"
+OUT_DIR = "../results/model_grid_advanced_outputs"
 DIAG_DIR = os.path.join(OUT_DIR, "diagnostics")
 os.makedirs(OUT_DIR, exist_ok=True)
 os.makedirs(DIAG_DIR, exist_ok=True)
