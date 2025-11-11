@@ -46,7 +46,12 @@ LB_LAGS = [10, 20, 40]  # Ljung-Box lags to report
 def load_returns(path, prefer_col="Log Returns"):
     df = pd.read_csv(path, parse_dates=["Date"])
     df = df.sort_values("Date").reset_index(drop=True)
-    # choose column robustly
+
+    # Filter to 2005–2007
+    start, end = pd.Timestamp("2005-01-01"), pd.Timestamp("2007-12-31")
+    df = df[(df["Date"] >= start) & (df["Date"] <= end)].reset_index(drop=True)
+
+    # Choose the returns column robustly
     col = None
     for c in [prefer_col, "Log Returns", "Returns", "Return", "logret", "log_return"]:
         if c in df.columns:
@@ -54,6 +59,8 @@ def load_returns(path, prefer_col="Log Returns"):
             break
     if col is None:
         raise ValueError(f"Couldn't find a returns column in {path}. Available columns: {df.columns.tolist()}")
+
+    # Extract the time series
     series = df[col].astype(float).dropna()
     series.index = pd.to_datetime(df.loc[series.index, "Date"])
     return series, col
