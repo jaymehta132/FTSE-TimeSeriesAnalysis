@@ -2,3 +2,6 @@ ec602/
 logs/
 __pycache__/
 */__pycache__/
+myenv/
+CLAUDE.md
+REPORT.md
