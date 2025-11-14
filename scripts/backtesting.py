@@ -552,7 +552,7 @@ def main():
                 if metric == 'direction_accuracy':
                     f.write(f"  {rank}. {marker} {model:25s} {score*100:6.2f}%\n")
                 else:
-                    f.write(f"  {rank}. {marker} {model:25s} {score:.6f}\n")
+                    f.write(f"  {rank}. {marker} {model:25s} {score:.14f}\n")
 
         f.write("\n" + "=" * 80 + "\n")
     logger.info(f"\nResults saved to: {output_dir}")
