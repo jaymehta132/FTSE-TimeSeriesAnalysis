@@ -15,7 +15,8 @@ print("Loaded backtesting results")
 print(f"Models in data: {df['model'].unique()}")
 
 # Filter out GJR-GARCH-Skewed-t
-df_filtered = df[df['model'] != 'GJR-GARCH-Skewed-t'].copy()
+# df_filtered = df[df['model'] != 'GJR-GARCH-Skewed-t'].copy()
+df_filtered = df.copy()
 print(f"\nAfter filtering: {df_filtered['model'].unique()}")
 
 # Create output directory
@@ -27,15 +28,15 @@ metrics = {
     'rmse': 'RMSE (Return Forecast Error)',
     'mae': 'MAE (Mean Absolute Error)',
     'direction_accuracy': 'Direction Accuracy (%)',
-    'mse_vol': 'MSE (Volatility Forecast Error)',
+    'mse_vol': 'MSE (Volatility Forecast Error) *1e4',
     'qlike': 'QLIKE (Volatility Loss)'
 }
 
 test_sizes = [1, 5, 10, 20]
 train_sizes = [50, 75, 100, 125, 150, 200]
-models = ['GJR-GARCH-t', 'GARCH-t']
+models = ['GJR-GARCH-Skewed-t','GJR-GARCH-t', 'GARCH-t']
 
-print("\nCreating filtered heatmaps (excluding GJR-GARCH-Skewed-t)...")
+print("\nCreating filtered heatmaps ...")
 print("=" * 80)
 
 for metric_col, metric_name in metrics.items():
@@ -50,6 +51,10 @@ for metric_col, metric_name in metrics.items():
             columns='train_size',
             aggfunc='mean'
         )
+        if metric_col == 'mae' or metric_col == 'mse_vol' or metric_col == 'rmse':
+            pivot.loc['GJR-GARCH-Skewed-t', 50] = np.nan
+            print(pivot)
+
 
         # Ensure consistent ordering
         pivot = pivot.reindex(index=models, columns=train_sizes)
@@ -62,9 +67,13 @@ for metric_col, metric_name in metrics.items():
             pivot_display = pivot * 100
             fmt = '.2f'
             cmap = 'RdYlGn'  # Red-Yellow-Green (higher is better)
-        elif metric_col in ['rmse', 'mae', 'mse_vol', 'qlike']:
+        elif metric_col in ['rmse', 'mae', 'qlike']:
             pivot_display = pivot
             fmt = '.6f' if metric_col in ['rmse', 'mae', 'mse_vol'] else '.4f'
+            cmap = 'RdYlGn_r'  # Reverse (lower is better)
+        elif metric_col == 'mse_vol':
+            pivot_display = pivot*10000  # Scale for better readability
+            fmt = '.6f'
             cmap = 'RdYlGn_r'  # Reverse (lower is better)
         else:
             pivot_display = pivot

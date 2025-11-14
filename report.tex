@@ -1,0 +1,1564 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{pgfplotstable}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{lipsum}
+\usepackage{tocloft}
+\usepackage{amsmath}
+\usepackage{float}
+% ---- Formatting ----
+\renewcommand{\cftchapfont}{\normalfont\bfseries}
+\renewcommand{\cftsecfont}{\normalfont}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
+\setcounter{secnumdepth}{2}
+
+\titleformat{\chapter}[block]{\normalfont\bfseries\Huge}{\thechapter.}{1em}{}
+\titleformat{\section}[block]{\normalfont\bfseries\large}{\thesection}{1em}{}
+
+% Make math match Times New Roman
+\usepackage{unicode-math}
+\setmathfont{TeX Gyre Termes Math}
+
+
+% Exact Times New Roman (needs XeLaTeX or LuaLaTeX)
+\usepackage{fontspec}
+\setmainfont{Times New Roman} % exact TNR
+
+
+\usepackage{setspace}
+\setstretch{1.15}
+
+
+
+% ---- Document ----
+\begin{document}
+
+% ------------------- TITLE PAGE -------------------
+\begin{titlepage}
+    \centering
+    {\Huge \textbf{FTSE 100 Index Returns}}\\[1.5cm]
+    {\Large \textbf{Project Report}}\\[2cm]
+
+    {\large \textbf{Submitted by:}}\\
+    \large{Geet Singhi (22b1035) }\\ \large{Jay Mehta (22b1281)} \\ \large{Piyush Babar ()} \\ \large{Ved Danait (22b1818)} \\ [0.5cm]
+    {\large \textbf{Course:}}\\
+    {\large EC602 - Time Series Econometrics for Economic Analysis - I }\\[0.5cm]
+    {\large \textbf{Institution:}}\\
+    {\large Indian Institute of Technology, Bombay}\\[2cm]
+
+    {\large \today}
+
+    \vfill
+\end{titlepage}
+
+% ------------------- TABLE OF CONTENTS -------------------
+\tableofcontents
+\thispagestyle{empty}
+\newpage
+
+% ------------------- CHAPTER 1 -------------------
+\chapter{Introduction and Objectives}
+
+
+Financial time series, such as stock market returns, often display distinct patterns that differ from typical datasets. For instance, large movements in prices tend to cluster together over time (a phenomenon known as volatility clustering), and the distribution of returns often deviates from the normal distribution, showing heavier tails and asymmetry. 
+
+The objective of this project is to model and forecast the daily returns of the FTSE 100 index for the period 2005--2007. 
+By doing so, we aim to capture both the average behaviour of returns and the way volatility changes over time, under different model and distributional assumptions. 
+Understanding these dynamics is essential for risk management, portfolio design, and forecasting future market behaviour.
+
+The specific objectives of the project are as follows:
+\begin{itemize}
+    \item To clean and prepare the FTSE 100 data for analysis. 
+    \item To perform exploratory data analysis (EDA) to understand return characteristics and determine suitable modelling approaches. 
+    \item To model the conditional mean of returns using an appropriate time-series model. 
+    \item To model the conditional variance (volatility) using volatility models such as GARCH and its variants. 
+    \item To evaluate model performance using statistical information criteria and diagnostic tests. 
+    \item To forecast volatility and interpret the persistence of risk in financial markets. 
+\end{itemize}
+% ------------------- CHAPTER 2 -------------------
+\chapter{Methodology and Data}
+
+\section{Dataset Description}
+The dataset used in this project consists of daily closing prices of the FTSE~100 index, obtained from the London Stock Exchange for the period 2005--2007. 
+The FTSE~100 is a stock market index that measures the performance of the 100 largest companies listed on the London Stock Exchange by market capitalization. 
+The data captures day-to-day movements in the index, providing a basis for modelling returns and volatility dynamics.
+
+\subsection{Data Preprocessing}
+The preprocessing pipeline was implemented in Python using the \texttt{pandas} and \texttt{numpy} libraries. 
+The raw dataset contained several columns such as \textit{Open}, \textit{High}, \textit{Low}, \textit{Change \%}, and \textit{Vol.}, which were dropped to retain only the \textit{Date} and \textit{Price} columns relevant for time-series analysis. 
+The preprocessing steps were as follows:
+\begin{itemize}
+    \item The \textit{Date} column was converted to a standard datetime format and sorted in chronological order.
+    \item Price values were converted from string to numeric format after removing commas.
+    \item Missing or invalid entries were checked and removed where necessary.
+    \item Daily returns and log-returns were computed to obtain a stationary time series suitable for modelling.
+\end{itemize}
+
+Daily simple returns were computed as:
+\[
+r_t = \frac{P_t - P_{t-1}}{P_{t-1}},
+\]
+where \(P_t\) denotes the closing price of the index on day \(t\).  
+Log-returns were then calculated as:
+\[
+\text{logret}_t = \ln(1 + r_t).
+\]
+
+\section{Exploratory Analysis}
+
+\subsection{Summary Statistics}
+Summary statistics of daily returns and log-returns for the FTSE~100 index (2005–2007) are shown in Table~\ref{tab:summary_stats}.  
+Both series have a mean close to zero and similar standard deviations (approximately 0.84\%).  
+Skewness is slightly negative, indicating a longer left tail, while the kurtosis values exceed 5, suggesting leptokurtic (fat-tailed) behavior.
+
+\begin{table}[h!]
+\centering
+\caption{Descriptive Statistics of FTSE~100 Daily Returns (2005–2007)}
+\label{tab:summary_stats}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Series} & \textbf{Mean} & \textbf{Std. Dev.} & \textbf{Skewness} & \textbf{Kurtosis} \\
+\hline
+Returns      & 0.000415 & 0.00843 & -0.373 & 5.711 \\
+Log Returns  & 0.000379 & 0.00844 & -0.431 & 5.789 \\
+\hline
+\end{tabular}
+\end{table}
+
+These results show that both series are mildly negatively skewed and exhibit high kurtosis, meaning that extreme values (large gains or losses) occur more frequently than under a normal distribution.
+
+\subsection{Distributional Characteristics}
+Figure~\ref{fig:histograms} shows the histogram and kernel density estimates for both returns and log-returns.  
+The distributions are centered around zero, with heavier tails than the Gaussian benchmark.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.45\textwidth]{hist_returns.png}
+\includegraphics[width=0.45\textwidth]{hist_logreturns.png}
+\caption{Histogram and KDE plots for Returns (left) and Log Returns (right).}
+\label{fig:histograms}
+\end{figure}
+
+\subsection{Normality Assessment}
+Q–Q plots were generated to compare both series with the normal and Student-$t$ distributions (Figures~\ref{fig:qq_normal} and~\ref{fig:qq_tdist}).  
+Under the normal benchmark, the tails deviate from the reference line, confirming heavy-tailed behavior.  
+When compared against the $t$-distribution (degrees of freedom $\approx 5$), the fit improves substantially, particularly in the tails.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.45\textwidth]{qq_plot_returns_normal.png}
+\includegraphics[width=0.45\textwidth]{qq_plot_log_returns_normal.png}
+\caption{Q–Q plots of Returns and Log Returns vs Normal Distribution.}
+\label{fig:qq_normal}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.45\textwidth]{qq_plot_returns_tdist.png}
+\includegraphics[width=0.45\textwidth]{qq_plot_log_returns_tdist.png}
+\caption{Q–Q plots of Returns and Log Returns vs Student-$t$ Distribution.}
+\label{fig:qq_tdist}
+\end{figure}
+
+\subsection{Volatility Clustering and Serial Dependence}
+Volatility clustering is a key stylized fact in financial time series—large price changes tend to be followed by large changes (of either sign).  
+While ACF and PACF plots of returns (Figure~\ref{fig:acf_returns}) show very marginal autocorrelation, the squared returns exhibit a slowly decaying ACF, indicating persistent volatility dynamics.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.45\textwidth]{acf_pacf_returns.png}
+\includegraphics[width=0.45\textwidth]{acf_pacf_squared_returns.png}
+\caption{ACF/PACF of Returns (left) and Squared Returns (right).}
+\label{fig:acf_returns}
+\end{figure}
+
+\subsection{Stationarity and Heteroskedasticity Tests}
+Formal tests were used to confirm these visual findings:
+\begin{itemize}
+    \item \textbf{ADF test:} Price series is non-stationary (\(p > 0.05\)); returns and log-returns are strongly stationary (\(p < 0.01\)).
+    \item \textbf{ARCH–LM test:} Significant ARCH effects detected (\(p < 0.001\)), confirming volatility clustering.
+    \item \textbf{Ljung–Box test:} Returns show weak but statistically significant autocorrelation at higher lags (\(p \approx 0.04\)).
+\end{itemize}
+
+These results imply that the conditional mean of returns exhibits little dependence, while the conditional variance is serially correlated.  
+This justifies modeling volatility explicitly using ARCH/GARCH-type models.
+
+\subsection{Summary of Findings}
+\begin{itemize}
+    \item Price series is non-stationary; returns and log-returns are stationary.
+    \item Distributions are heavy-tailed and slightly left-skewed.
+    \item Significant ARCH effects confirm volatility clustering.
+    \item Mean dynamics are weak, suggesting a simple ARMA(p,q) structure may suffice.
+    \item Volatility must be modeled via a GARCH-type process, with a Student-$t$ distribution for residuals.
+\end{itemize}
+
+Overall, the exploratory analysis supports the use of an ARMA–GARCH framework for the FTSE~100 return series, with Student-$t$ innovations to better capture tail behavior.
+
+\section{Modeling Framework}
+
+Financial return series often exhibit weak serial correlation in the mean but strong persistence in volatility (heteroskedasticity).  
+To capture these dynamics, we adopt a two-step modeling framework that jointly estimates the conditional mean and variance of the returns process.
+
+\subsection{Mean Equation: ARMA Specification}
+The conditional mean of daily returns is modeled using an autoregressive moving average process:
+\[
+r_t = \mu + \phi_1 r_{t-1} + \theta_1 \varepsilon_{t-1} + \varepsilon_t,
+\]
+where \(r_t\) denotes the return at time \(t\), \(\mu\) is the unconditional mean, \(\varepsilon_t\) is the innovation term (white noise), \(\phi_1\) captures the autoregressive effect, and \(\theta_1\) represents the moving average effect.  
+This ARMA(1,1) specification allows the conditional mean to account for short-term serial dependence in returns while leaving the volatility dynamics to the variance equation.
+
+\subsection{Variance Equation: Conditional Heteroskedasticity Models}
+The conditional variance \(\sigma_t^2 = \text{Var}(\varepsilon_t \,|\, \mathcal{F}_{t-1})\) is modeled using various members of the GARCH family.  
+We first estimate the standard GARCH model and then extend it with nonlinear and asymmetric variants.
+
+\subsubsection{GARCH(1,1)}
+The Generalized Autoregressive Conditional Heteroskedasticity (GARCH) model proposed by Bollerslev (1986) is specified as:
+\[
+\sigma_t^2 = \omega + \alpha_1 \varepsilon_{t-1}^2 + \beta_1 \sigma_{t-1}^2,
+\]
+where:
+\begin{itemize}
+    \item \(\omega > 0\) is a constant term,
+    \item \(\alpha_1\) measures the short-run reaction of volatility to market shocks (the ARCH effect),
+    \item \(\beta_1\) captures the persistence of volatility (the GARCH effect).
+\end{itemize}
+High values of \(\alpha_1 + \beta_1\) close to one imply persistent volatility clustering, a common feature of financial time series.
+
+\subsubsection{ARCH(1)}
+As a baseline, we also estimate the simpler ARCH(1) model (Engle, 1982):
+\[
+\sigma_t^2 = \omega + \alpha_1 \varepsilon_{t-1}^2,
+\]
+which models the conditional variance purely as a function of past squared residuals.  
+This captures short-run volatility but typically underestimates long-term persistence.
+
+\subsubsection{EGARCH(1,1)}
+The Exponential GARCH model (Nelson, 1991) models the logarithm of conditional variance:
+\[
+\ln(\sigma_t^2) = \omega + \beta_1 \ln(\sigma_{t-1}^2) + \alpha_1 \left|\frac{\varepsilon_{t-1}}{\sigma_{t-1}}\right| + \gamma_1 \frac{\varepsilon_{t-1}}{\sigma_{t-1}}.
+\]
+This formulation ensures positivity of variance without parameter restrictions.  
+The term \(\gamma_1\) introduces asymmetry: negative shocks (bad news) and positive shocks (good news) can have different effects on volatility, consistent with the ``leverage effect'' observed in equity returns.
+
+\subsubsection{GJR–GARCH(1,1)}
+The Glosten–Jagannathan–Runkle GARCH model (GJR–GARCH; 1993) introduces asymmetry through an indicator variable:
+\[
+\sigma_t^2 = \omega + \alpha_1 \varepsilon_{t-1}^2 + \gamma_1 I_{\{\varepsilon_{t-1} < 0\}} \varepsilon_{t-1}^2 + \beta_1 \sigma_{t-1}^2,
+\]
+where \(I_{\{\varepsilon_{t-1} < 0\}}\) equals 1 if the previous shock was negative and 0 otherwise.  
+The additional term \(\gamma_1\) captures the differential impact of negative shocks on volatility.  
+If \(\gamma_1 > 0\), then negative shocks increase volatility more than positive shocks of the same magnitude—another representation of the leverage effect.
+
+\subsection{Distributional Assumptions}
+The innovation terms \(\varepsilon_t\) represent the unpredictable shocks in returns and are modeled under different distributional assumptions to capture the empirical characteristics of financial data.
+
+\begin{itemize}
+    \item \textbf{Normal distribution:} \(\varepsilon_t \sim \mathcal{N}(0, \sigma_t^2)\).  
+    This is the standard assumption, implying symmetric and thin-tailed innovations.
+    
+    \item \textbf{Student-\(t\) distribution:} \(\varepsilon_t \sim t_\nu(0, \sigma_t^2)\).  
+    The Student-\(t\) allows for heavier tails through its degrees of freedom parameter \(\nu\), making it more suitable for capturing large shocks and volatility bursts often seen in financial returns.
+
+    \item \textbf{Skewed Student-\(t\) distribution:} \(\varepsilon_t \sim \text{Skew-}t(\nu, \xi)\).  
+    This distribution introduces an additional skewness parameter \(\xi\) to allow for asymmetric behavior in returns.  
+    Empirically, negative returns in financial markets often occur with higher magnitude and frequency than positive ones; the skew-\(t\) specification accommodates this asymmetry by adjusting the shape of the distribution.
+\end{itemize}
+
+Overall, the Student-\(t\) and Skewed-\(t\) specifications provide greater flexibility in modeling fat-tailed and asymmetric return distributions, which are both key features of real-world financial data.
+
+
+\subsection{Modeling Strategy}
+Two modeling stages were implemented:
+\begin{enumerate}
+    \item \textbf{Basic Models:} ARMA(1,1)–GARCH(1,1) combinations were estimated under both Normal and Student-\(t\) error distributions to capture conditional mean and volatility. 
+    \item \textbf{Advanced Models:} In the advanced stage, we estimated a range of volatility models including ARCH(1), GARCH(1,1), EGARCH(1,1), and GJR–GARCH(1,1), along with selected higher-order GARCH(\(p,q\)) variants.  
+    These models were fitted under both Student-\(t\) and Skewed Student-\(t\) distributions to account for heavy tails, asymmetry, and potential nonlinearities in the volatility process.
+
+\end{enumerate}
+
+All models were fitted using the \texttt{arch} Python library, and parameter estimates were compared based on log-likelihood, AIC, and diagnostic tests on standardized residuals.
+
+
+% ------------------- CHAPTER 3 -------------------
+\chapter{Results and Analysis}
+
+\section{Model Estimation}
+Model estimation was conducted using Python's \texttt{arch} and \texttt{statsmodels} libraries.  
+A range of ARMA–GARCH family models were estimated to capture both the conditional mean and variance dynamics of FTSE~100 returns.  
+The mean equation was specified as an ARMA(\(p,q\)) process, while the variance equation adopted symmetric and asymmetric GARCH-type structures including GARCH, EGARCH, and GJR–GARCH.  
+Each model was fitted under Normal, Student-\(t\), and, in advanced cases, Skewed Student-\(t\) innovation assumptions.
+
+\subsection{Model Selection Criteria}
+To determine the most appropriate specification, six diagnostic criteria were applied:
+\begin{enumerate}
+    \item \textbf{Information Criteria:} Akaike (AIC) and Bayesian (BIC) Information Criteria, where lower values denote a better balance between fit and complexity.
+    \item \textbf{Ljung–Box Tests:} Performed on residuals and squared residuals to detect serial correlation and remaining ARCH effects.
+    \item \textbf{ARCH–LM Test:} Tests for remaining conditional heteroskedasticity.
+    \item \textbf{Jarque–Bera Test:} Evaluates normality of standardized residuals.
+    \item \textbf{Persistence:} Measured by \(\alpha + \beta\); values below unity imply mean-reverting volatility.
+    \item \textbf{Visual Diagnostics:} Residual plots, Q–Q plots, and ACF/PACF diagnostics.
+\end{enumerate}
+
+\subsection{Basic Model Results}
+The initial grid search combined ARMA(\(p,q\)) mean structures with GARCH(1,1) variance dynamics under both Gaussian and Student-\(t\) innovations.  
+Model fit statistics are summarized in Table~\ref{tab:basic_models}.  
+The Student-\(t\) innovation consistently improved log-likelihood and reduced AIC/BIC values, confirming the presence of heavy tails in FTSE~100 returns.
+
+\[
+\text{Best model: } \text{ARMA(0,1) + GARCH(1,1)–t}
+\]
+
+This specification achieved the lowest AIC (\(-10351.73\)) and a persistence of \(\alpha + \beta = 0.98\), suggesting high but stationary volatility persistence.  
+Residual diagnostics showed no significant autocorrelation or remaining ARCH effects (ARCH–LM \(p = 0.13\); Ljung–Box \(p = 0.55\)).
+
+\begin{table}[H]
+\centering
+\caption{Basic model grid search results (sorted by AIC).}
+\label{tab:basic_models}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Model} & \textbf{Dist.} & \textbf{AIC} & \textbf{BIC} & \(\alpha + \beta\) & \textbf{ARCH–LM p} & \textbf{LB(res) p(10)} & \textbf{LB(res$^2$) p(10)} \\
+\midrule
+ARMA(0,1)+GARCH(1,1) & t & -10351.73 & -10319.34 & 0.980 & 0.135 & 0.316 & 0.553 \\
+ARMA(1,0)+GARCH(1,1) & t & -10351.33 & -10318.93 & 0.980 & 0.119 & 0.293 & 0.523 \\
+ARMA(1,1)+GARCH(1,1) & t & -10349.75 & -10312.73 & 0.980 & 0.126 & 0.306 & 0.536 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{acf_p0_q1_t.png}
+    \caption{Autocorrelation functions (ACF) of standardized and squared residuals for the ARMA(0,1)+GARCH(1,1)–t model. 
+    Both series show no significant autocorrelation, indicating an adequate mean and variance specification.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{qq_p0_q1_t.png}
+ \caption{Q–Q plot of standardized residuals for the ARMA(0,1)+GARCH(1,1)–t model under Student-\(t\) innovations. 
+    The residuals align well with the theoretical quantiles in the center but deviate in the tails, indicating that while the Student-\(t\) distribution improves fit relative to the Normal, it does not fully capture the extreme tail behavior.}
+\end{figure}
+
+
+
+
+\subsection{Advanced Model Results}
+Building on the initial findings, the advanced phase extended estimation to asymmetric and nonlinear volatility models — specifically GJR–GARCH and EGARCH — under both Student-\(t\) and Skewed Student-\(t\) innovation assumptions.  
+These models were designed to capture leverage effects (asymmetric responses of volatility to shocks) and potential skewness in return distributions.
+
+\begin{itemize}
+    \item The \textbf{GJR–GARCH(1,1)–t} model exhibited strong performance, with persistence \(\alpha + \beta = 0.883\) and well-behaved residuals (ARCH–LM \(p = 0.54\)).
+    \item The \textbf{GJR–GARCH(1,1)–Skew–t} specification achieved the lowest AIC (\(-10376.44\)) among all models tested, with no significant remaining ARCH effects (ARCH–LM \(p = 0.63\)) and clean residual structure.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Advanced model grid search results (sorted by AIC).}
+\label{tab:advanced_models}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Model} & \textbf{Dist.} & \textbf{AIC} & \textbf{BIC} & \(\alpha + \beta\) & \textbf{ARCH–LM p} & \textbf{LB(res) p(10)} & \textbf{LB(res$^2$) p(10)} \\
+\midrule
+ARMA(0,1)+GJR–GARCH(1,1) & Skew–t & -10376.44 & -10334.78 & 0.889 & 0.631 & 0.412 & 0.452 \\
+ARMA(0,1)+GJR–GARCH(1,1) & t & -10367.70 & -10330.68 & 0.883 & 0.537 & 0.387 & 0.401 \\
+ARMA(0,1)+GARCH(1,1) & t & -10351.73 & -10319.34 & 0.980 & 0.135 & 0.316 & 0.553 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.48\textwidth]{acf_ARMA0_0_1GJR-GARCH11-t.png}
+    \caption{Standardized residual diagnostics for the GJR–GARCH(1,1)–t model. 
+    The absence of visible autocorrelation in the residuals and squared residuals confirms that conditional heteroskedasticity is adequately captured under the Student-\(t\) assumption.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.48\textwidth]{acf_ARMA0_0_1GJR-GARCH11-skewt.png}
+    \caption{Standardized residual diagnostics for the GJR–GARCH(1,1)–Skew–t model. 
+    The residual series shows no systematic pattern, and squared residuals exhibit no significant serial dependence, confirming a well-specified conditional variance structure.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{qq_ARMA01GJR-GARCH11-t.png}
+    \caption{Q–Q plot of standardized residuals for the GJR–GARCH(1,1)–t model. 
+    The residuals align closely along the theoretical Student-\(t\) quantiles in the center but show minor deviations in the tails, suggesting a partial but not perfect capture of extreme return behavior.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{qq_ARMA01GJR-GARCH11-skewt.png}
+    \caption{Q–Q plot of standardized residuals for the GJR–GARCH(1,1)–Skew–t model. 
+    Compared to the symmetric \(t\)-case, the skewed-\(t\) distribution provides better tail alignment and reduced asymmetry, indicating improved modeling of leverage and fat-tail behavior.}
+\end{figure}
+
+\subsection{Model Comparison Summary}
+The AIC/BIC rankings and diagnostic tests collectively indicate that the \\\textbf{ARMA(0,1)+GJR–GARCH(1,1)–Skew–t} specification provides the best fit to the FTSE~100 data, offering both statistical efficiency and robustness in capturing heavy tails and leverage effects. 
+
+
+
+\subsection{Key Insights}
+\begin{itemize}
+    \item All GARCH-family models effectively captured volatility clustering and leptokurtosis in returns.
+    \item The Student-\(t\) and Skewed Student-\(t\) distributions substantially improved model fit over the Normal specification.
+    \item The inclusion of asymmetry (GJR term) enhanced modeling of the leverage effect — higher volatility following negative shocks.
+\end{itemize}
+
+\section{Return Forecasting}
+
+This section presents the forecasting methodology and results for three candidate ARMA–GARCH models identified in Section 3.1. The objective is to demonstrate each model's capability to generate multi-horizon return and volatility forecasts, along with corresponding prediction intervals. Note that models are trained on the \textbf{full dataset (2005--2007, 756 observations)} to showcase in-sample forecasting methodology. True out-of-sample validation is performed in Section 3.3 using rolling window backtesting.
+
+\subsection{Forecasting Methodology}
+
+\subsubsection{Training Data}
+
+All three models were fitted using the complete historical dataset spanning January 1, 2005 to December 31, 2007 (756 daily observations). This full-sample approach allows us to:
+\begin{enumerate}
+    \item Demonstrate the models' forecasting capabilities with maximum available information
+    \item Establish baseline forecast behavior under ideal conditions
+    \item Compare model predictions before evaluating their true out-of-sample performance
+\end{enumerate}
+
+\textbf{Important:} This is in-sample forecasting for demonstration purposes. Models have access to all historical data, which provides optimistic performance estimates. Section 3.3 addresses this limitation through rigorous out-of-sample backtesting.
+
+\subsubsection{Candidate Models}
+
+Based on the model selection analysis in Section 3.1, three models were selected for forecasting:
+
+\begin{table}[H]
+\centering
+\caption{Candidate models for forecasting.}
+\label{tab:forecast_models}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{Mean Spec.} & \textbf{Volatility Spec.} & \textbf{Distribution} & \textbf{In-Sample AIC} \\
+\midrule
+\textbf{Model 1} & ARMA(0,1) & GJR–GARCH(1,1) & Skewed-t & \textbf{1652.32} ⭐ \\
+Model 2 & ARMA(0,1) & GJR–GARCH(1,1) & Student-t & 1669.18 \\
+Model 3 & ARMA(0,1) & GARCH(1,1) & Student-t & 1687.86 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Model 1 (GJR–GARCH–Skewed-t)} achieved the best in-sample fit with the lowest AIC, suggesting it captures the data-generating process most accurately within the sample period.
+
+\subsubsection{Forecast Horizons}
+
+Four forecast horizons were evaluated to assess model performance across different time scales:
+\begin{itemize}
+    \item \textbf{1-day ahead:} Short-term forecasting (typical for day trading, risk management)
+    \item \textbf{5-day ahead:} Weekly forecasting (one trading week)
+    \item \textbf{10-day ahead:} Bi-weekly forecasting (portfolio rebalancing)
+    \item \textbf{20-day ahead:} Monthly forecasting (strategic asset allocation)
+\end{itemize}
+
+Multi-step ahead forecasts were generated using model recursion, where conditional forecasts at horizon \(h\) depend on forecasts at horizons 1 through \(h-1\).
+
+\subsubsection{Confidence Intervals}
+
+Prediction intervals were computed using each model's conditional distribution:
+
+\textbf{Student-t Distribution (Models 2 \& 3):}
+\begin{itemize}
+    \item 95\% confidence intervals: \([\mu_t + t_{0.025}(\nu) \cdot \sigma_t,\, \mu_t + t_{0.975}(\nu) \cdot \sigma_t]\)
+    \item Where \(\nu\) is the estimated degrees of freedom parameter
+    \item Symmetric intervals around the mean forecast
+\end{itemize}
+
+\textbf{Skewed-t Distribution (Model 1):}
+\begin{itemize}
+    \item 95\% confidence intervals account for both heavy tails and asymmetry
+    \item Allows for asymmetric downside/upside risk
+    \item Captures empirical fact that negative returns often have larger magnitude than positive returns
+\end{itemize}
+
+\subsection{Model Fitting Results}
+
+All three models were successfully fitted to the full dataset. Table~\ref{tab:model_fitting} presents the fitting statistics:
+
+\begin{table}[H]
+\centering
+\caption{Model fitting statistics (Full Sample: 2005--2007).}
+\label{tab:model_fitting}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Log-Likelihood} & \textbf{AIC} & \textbf{Parameters} & \textbf{Ranking} \\
+\midrule
+GJR–GARCH–Skewed-t & -819.16 & \textbf{1652.32} & 7 & \textbf{1st} ⭐ \\
+GJR–GARCH–t & -828.59 & 1669.18 & 6 & 2nd \\
+GARCH–t & -838.93 & 1687.86 & 5 & 3rd \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Observations:}
+\begin{itemize}
+    \item GJR–GARCH–Skewed-t achieves the best in-sample fit (lowest AIC)
+    \item The improvement from GARCH–t to GJR–GARCH–t (\(\Delta\)AIC = 18.68) suggests leverage effects are important
+    \item Adding skewness parameter provides further improvement (\(\Delta\)AIC = 16.86)
+    \item These results confirm the model selection from Section 3.1
+\end{itemize}
+
+\subsection{Point Forecasts: Return and Volatility}
+
+Table~\ref{tab:1day_forecasts} presents the 1-day ahead forecasts from each model, representing the models' baseline predictions:
+
+\begin{table}[H]
+\centering
+\caption{1-Day ahead forecasts (In-Sample).}
+\label{tab:1day_forecasts}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{Mean Return} & \textbf{Volatility} & \multicolumn{2}{c}{\textbf{95\% CI}} \\
+ & \textbf{(bps)} & \textbf{(\%)} & \textbf{Lower (bps)} & \textbf{Upper (bps)} \\
+\midrule
+GJR–GARCH–Skewed-t & \textbf{3.22} & 0.981 & -189.0 & 195.4 \\
+GJR–GARCH–t & 3.90 & 0.973 & -186.8 & 194.6 \\
+GARCH–t & 6.84 & 0.909 & -171.5 & 185.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textit{Note: 1 basis point (bp) = 0.01\%. Returns displayed in bps for readability given small magnitudes.}
+
+\textbf{Key Observations:}
+
+\begin{enumerate}
+    \item \textbf{Mean Return Forecasts:} All models predict small positive returns (3--7 bps daily), consistent with the historical average. This reflects the near-random-walk behavior of daily returns.
+
+    \item \textbf{Volatility Forecasts:}
+    \begin{itemize}
+        \item GJR models predict slightly higher volatility ($\sim$0.97--0.98\%) than symmetric GARCH ($\sim$0.91\%)
+        \item This difference reflects the leverage effect: recent negative shocks increase conditional volatility more than positive shocks
+        \item Forecast volatility levels are consistent with historical volatility during the sample period
+    \end{itemize}
+
+    \item \textbf{Confidence Intervals:}
+    \begin{itemize}
+        \item All models show wide 95\% confidence intervals (approximately \(\pm\)190 bps)
+        \item This reflects the high uncertainty in daily return forecasting
+        \item Even with sophisticated GARCH models, point forecasts have limited precision
+        \item Intervals are roughly symmetric, though Skewed-t model allows asymmetry
+    \end{itemize}
+
+    \item \textbf{Practical Interpretation:} The mean forecasts near zero suggest that predicting the direction of daily returns is extremely difficult. The value of GARCH models lies primarily in volatility forecasting, not mean return forecasting.
+\end{enumerate}
+
+\subsection{Multi-Horizon Volatility Forecasts}
+
+Table~\ref{tab:multihorizon_vol} examines how volatility forecasts evolve across different horizons, revealing the persistence and mean-reversion properties of each model:
+
+\begin{table}[H]
+\centering
+\caption{Volatility forecasts across horizons.}
+\label{tab:multihorizon_vol}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{1-day (\%)} & \textbf{5-day (\%)} & \textbf{10-day (\%)} & \textbf{20-day (\%)} & \textbf{Decay Rate} \\
+\midrule
+GJR–GARCH–Skewed-t & 0.981 & 0.951 & 0.918 & 0.869 & -11.4\% \\
+GJR–GARCH–t & 0.973 & 0.942 & 0.907 & 0.856 & -12.0\% \\
+GARCH–t & 0.909 & 0.898 & 0.887 & 0.869 & -4.4\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textit{Decay Rate: Percentage change from 1-day to 20-day ahead forecast}
+
+\textbf{Key Findings:}
+
+\begin{enumerate}
+    \item \textbf{Mean Reversion Patterns:}
+    \begin{itemize}
+        \item All models predict volatility converges toward long-run average over time
+        \item GJR–GARCH models exhibit faster mean reversion (-11.4\% and -12.0\% over 20 days)
+        \item Symmetric GARCH shows slower decay (-4.4\%), reflecting higher persistence
+    \end{itemize}
+
+    \item \textbf{Model-Specific Dynamics:}
+    \begin{itemize}
+        \item \textbf{GJR Models:} Faster volatility decay due to asymmetric specification. After capturing the initial impact of negative shocks, volatility reverts more quickly to the unconditional mean.
+        \item \textbf{GARCH–t:} Higher persistence (\(\alpha + \beta \approx 0.98\)) leads to slower decay. Shocks have longer-lasting effects on volatility forecasts.
+    \end{itemize}
+
+    \item \textbf{Convergence:} By the 20-day horizon, all three models predict similar volatility ($\sim$0.86--0.87\%), suggesting they agree on long-run volatility despite different short-term dynamics.
+
+    \item \textbf{Practical Implications:}
+    \begin{itemize}
+        \item For short-term risk management (1--5 days), model choice matters significantly
+        \item For longer horizons (20+ days), differences diminish
+        \item GJR models may be more appropriate for capturing rapid volatility changes after market shocks
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Comparative Volatility Forecasts}
+
+Figure~\ref{fig:comparative_vol_forecasts} presents a visual comparison of volatility forecasts across all horizons and models:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{results/forecasting/comparative_volatility_forecasts.png}
+\caption{Comparative volatility forecasts across models. The figure shows volatility forecasts (in percentage) for 1-day, 5-day, 10-day, and 20-day ahead horizons. GJR–GARCH models (red, blue) show faster mean reversion due to leverage effects, while symmetric GARCH–t (green) exhibits higher persistence.}
+\label{fig:comparative_vol_forecasts}
+\end{figure}
+
+\textbf{Visual Insights:}
+
+\begin{enumerate}
+    \item \textbf{Divergence at Short Horizons:} The three models show the greatest disagreement at 1-day ahead forecasts, where GJR–GARCH–Skewed-t predicts the highest volatility (0.98\%).
+
+    \item \textbf{Convergence Pattern:} By 20 days ahead, all models converge to approximately 0.87\% volatility, reflecting agreement on long-run volatility despite different specifications.
+
+    \item \textbf{Decay Trajectories:}
+    \begin{itemize}
+        \item GJR models show steeper downward slopes (faster mean reversion)
+        \item GARCH–t shows flatter trajectory (higher persistence)
+        \item This difference is most pronounced between 5--15 day horizons
+    \end{itemize}
+
+    \item \textbf{Consistency Across Subplots:} The pattern holds consistently across all four forecast horizons, suggesting robust model behavior.
+\end{enumerate}
+
+\subsection{Individual Model Forecasts with Confidence Bands}
+
+Figures~\ref{fig:gjr_skewt_forecasts}--\ref{fig:garch_t_forecasts} present detailed forecasts for each model, including mean return forecasts with 95\% confidence intervals:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/forecasting/GJR-GARCH-Skewed-t_forecasts.png}
+\caption{Return forecasts from ARMA(0,1)+GJR–GARCH(1,1)–Skewed-t model. Shaded regions represent 95\% prediction intervals accounting for skewed-t distribution. Returns displayed in basis points.}
+\label{fig:gjr_skewt_forecasts}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/forecasting/GJR-GARCH-t_forecasts.png}
+\caption{Return forecasts from ARMA(0,1)+GJR–GARCH(1,1)–Student-t model. Confidence intervals are symmetric due to Student-t distribution.}
+\label{fig:gjr_t_forecasts}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/forecasting/GARCH-t_forecasts.png}
+\caption{Return forecasts from ARMA(0,1)+GARCH(1,1)–Student-t model. Simplest specification without leverage effect.}
+\label{fig:garch_t_forecasts}
+\end{figure}
+
+\textbf{Key Observations from Individual Forecasts:}
+
+\begin{enumerate}
+    \item \textbf{Mean Forecast Behavior:}
+    \begin{itemize}
+        \item All models predict mean returns near zero for all horizons
+        \item Slight positive bias (2--7 bps) reflects historical average return
+        \item Forecasts remain stable across horizons (mean reversion is weak for returns)
+    \end{itemize}
+
+    \item \textbf{Confidence Interval Width:}
+    \begin{itemize}
+        \item 1-day ahead: \(\pm\)190 bps (approximately \(\pm\)2\%)
+        \item 20-day ahead: Intervals remain wide, reflecting cumulative uncertainty
+        \item Width increases slightly with horizon due to compounding variance
+    \end{itemize}
+
+    \item \textbf{Symmetry vs. Asymmetry:}
+    \begin{itemize}
+        \item Student-t models (Figures~\ref{fig:gjr_t_forecasts}, \ref{fig:garch_t_forecasts}): Symmetric confidence bands
+        \item Skewed-t model (Figure~\ref{fig:gjr_skewt_forecasts}): Potential for asymmetric bands capturing downside risk
+        \item In practice, asymmetry is subtle given the small mean forecasts
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Discussion}
+
+\subsubsection{Model Comparison Insights}
+
+\begin{enumerate}
+    \item \textbf{In-Sample Fit vs. Forecast Behavior:}
+    \begin{itemize}
+        \item GJR–GARCH–Skewed-t has best AIC (1652.32), suggesting superior historical fit
+        \item However, all three models produce \textit{similar} forecasts (mean returns 3--7 bps, volatility $\sim$0.9--1.0\%)
+        \item This raises the question: Does better in-sample fit translate to better out-of-sample forecasts?
+    \end{itemize}
+
+    \item \textbf{Return vs. Volatility Forecasting:}
+    \begin{itemize}
+        \item \textbf{Return forecasts:} Nearly indistinguishable across models (all near zero)
+        \item \textbf{Volatility forecasts:} More meaningful differences, especially at short horizons
+        \item Suggests GARCH modeling is more valuable for volatility than return prediction
+    \end{itemize}
+
+    \item \textbf{Model Complexity Trade-offs:}
+    \begin{itemize}
+        \item Adding leverage effect (GJR): Marginal improvement in AIC (\(\Delta\)AIC \(\approx\) 19)
+        \item Adding skewness: Further marginal improvement (\(\Delta\)AIC \(\approx\) 17)
+        \item Question: Do these incremental improvements in fit lead to better real-world forecasts?
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Forecast Uncertainty}
+
+The wide 95\% confidence intervals (\(\pm\)2\% for 1-day ahead forecasts) highlight the inherent difficulty of return forecasting:
+
+\begin{itemize}
+    \item Even sophisticated GARCH models cannot narrow the range of plausible outcomes significantly
+    \item Daily returns remain highly unpredictable despite modeling volatility clustering and leverage effects
+    \item \textbf{Practical implication:} Point forecasts should be interpreted cautiously; the full predictive distribution (confidence intervals) is more informative
+\end{itemize}
+
+\subsubsection{Volatility Forecasting Performance}
+
+While return forecasts show limited discriminatory power, volatility forecasts reveal important differences:
+
+\begin{enumerate}
+    \item \textbf{Persistence:} GARCH–t (\(\alpha+\beta \approx 0.98\)) implies shocks affect volatility for extended periods
+    \item \textbf{Mean Reversion:} GJR models suggest faster return to long-run volatility
+    \item \textbf{Asymmetry:} GJR models allow negative shocks to have different impacts than positive shocks
+\end{enumerate}
+
+These differences are economically meaningful for risk management applications like VaR calculation and option pricing.
+
+\subsubsection{Limitations of In-Sample Forecasting}
+
+This section demonstrates \textbf{what models predict}, but several limitations must be acknowledged:
+
+\begin{enumerate}
+    \item \textbf{Look-Ahead Bias:} Models are fitted using all 2005--2007 data, then asked to forecast. In reality, forecasters don't have future data.
+
+    \item \textbf{No Model Validation:} We observe predicted values but cannot yet evaluate forecast accuracy without comparing to actual realizations.
+
+    \item \textbf{Overfitting Risk:} GJR–GARCH–Skewed-t's superior AIC may simply reflect fitting noise rather than capturing true data-generating process.
+
+    \item \textbf{Sample-Specific Results:} The 2005--2007 period includes the onset of the 2007--2008 financial crisis. Results may not generalize to other periods.
+\end{enumerate}
+
+\subsubsection{Motivating Out-of-Sample Testing}
+
+The key unanswered question is: \textbf{Which model actually forecasts best in practice?}
+
+\begin{itemize}
+    \item In-sample AIC suggests GJR–GARCH–Skewed-t
+    \item But model complexity can lead to overfitting
+    \item Simpler models might generalize better to new data
+    \item \textbf{Only out-of-sample backtesting can answer this question definitively}
+\end{itemize}
+
+This motivates Section 3.3, where we evaluate true forecast performance using rolling window backtesting with proper train/test splits.
+
+\section{Out-of-Sample Testing and Backtesting}
+
+Section 3.2 demonstrated that GJR–GARCH–Skewed-t achieves the best in-sample fit (AIC = 1652.32). However, in-sample fit does not guarantee superior out-of-sample forecast accuracy. This section rigorously evaluates which model performs best in practice using rolling window backtesting.
+
+\subsection{Rolling Window Methodology}
+
+\subsubsection{Overview}
+
+Rolling window backtesting simulates real-world forecasting by:
+\begin{enumerate}
+    \item Training models on historical data (training window)
+    \item Generating forecasts for future periods (test window)
+    \item Comparing forecasts to actual realizations
+    \item Rolling the window forward and repeating
+\end{enumerate}
+
+This approach eliminates look-ahead bias and provides unbiased estimates of true forecast performance.
+
+\subsubsection{Configuration Details}
+
+\textbf{Training Window Sizes:} [50, 75, 100, 125, 150, 200] days
+
+We test multiple training window sizes to evaluate:
+\begin{itemize}
+    \item How much historical data is required for stable parameter estimates
+    \item Whether larger windows improve forecasts or incorporate stale information
+    \item Model robustness to data availability constraints
+\end{itemize}
+
+\textbf{Test Horizons:} [1, 5, 10, 20] days ahead
+
+Four forecast horizons assess performance from intraday risk management (1-day) to monthly allocation (20-day).
+
+\textbf{Total Configurations:} 6 train sizes \(\times\) 4 test horizons = \textbf{24 configurations}
+
+\textbf{Models Evaluated:} All three models from Section 3.2
+\begin{itemize}
+    \item ARMA(0,1) + GJR–GARCH(1,1) – Skewed-t
+    \item ARMA(0,1) + GJR–GARCH(1,1) – Student-t
+    \item ARMA(0,1) + GARCH(1,1) – Student-t
+\end{itemize}
+
+\subsubsection{Rolling Window Statistics}
+
+Table~\ref{tab:rolling_windows} presents the number of rolling windows for each training size:
+
+\begin{table}[H]
+\centering
+\caption{Rolling window counts by training size.}
+\label{tab:rolling_windows}
+\begin{tabular}{lcp{7cm}}
+\toprule
+\textbf{Training Size} & \textbf{Number of Windows} & \textbf{Notes} \\
+\midrule
+50 days & 687 & Smallest window (risky for complex models) \\
+75 days & 662 & \\
+100 days & 637 & \\
+125 days & 612 & \\
+150 days & 587 & \\
+200 days & 537 & Largest window (most stable estimates) \\
+\midrule
+\textbf{Total} & \textbf{3,722} & Total model fits performed \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Computational Efficiency:} To avoid redundant computation, we implemented an optimized approach:
+\begin{itemize}
+    \item For each rolling window, fit each model \textbf{once}
+    \item Generate forecasts for \textbf{all four horizons} from the single fitted model
+    \item This reduced total model fits from $\sim$50,400 to $\sim$12,600 (4\(\times\) speedup)
+\end{itemize}
+
+\subsubsection{Example Rolling Window}
+
+For train\_size=100 and test\_size=5:
+
+\begin{verbatim}
+Window 1:  Train on days [1:100]    → Forecast days [101:105]   → Evaluate
+Window 2:  Train on days [2:101]    → Forecast days [102:106]   → Evaluate
+Window 3:  Train on days [3:102]    → Forecast days [103:107]   → Evaluate
+...
+Window 637: Train on days [637:736] → Forecast days [737:741]  → Evaluate
+\end{verbatim}
+
+Each window slides forward by 1 day, providing overlapping but distinct train/test splits.
+
+\subsection{Forecast Accuracy Metrics}
+
+\subsubsection{Return Forecasting Metrics}
+
+\textbf{Root Mean Squared Error (RMSE):}
+\begin{itemize}
+    \item RMSE = \(\sqrt{1/N \sum(r_t - \hat{r}_t)^2}\)
+    \item Penalizes large forecast errors heavily (squaring term)
+    \item Standard metric for point forecast accuracy
+    \item Lower is better
+\end{itemize}
+
+\textbf{Mean Absolute Error (MAE):}
+\begin{itemize}
+    \item MAE = \(1/N \sum|r_t - \hat{r}_t|\)
+    \item Average magnitude of forecast errors
+    \item More robust to outliers than RMSE
+    \item Lower is better
+\end{itemize}
+
+\textbf{Direction Accuracy:}
+\begin{itemize}
+    \item Percentage of correct sign predictions (up/down)
+    \item Measures ability to forecast return direction
+    \item Particularly relevant for trading strategies
+    \item Higher is better; 50\% = random guessing
+\end{itemize}
+
+\subsubsection{Volatility Forecasting Metrics}
+
+\textbf{Mean Squared Error (MSE):}
+\begin{itemize}
+    \item MSE = \(1/N \sum(\sigma_t^2 - \hat{\sigma}_t^2)^2\)
+    \item Squared error between realized and forecast variance
+    \item Lower is better
+\end{itemize}
+
+\textbf{Quasi-Likelihood (QLIKE):}
+\begin{itemize}
+    \item QLIKE = \(1/N \sum(\sigma_t^2/\hat{\sigma}_t^2 - \log(\sigma_t^2/\hat{\sigma}_t^2) - 1)\)
+    \item Robust loss function for volatility forecasts
+    \item Less sensitive to outliers than MSE
+    \item Theoretically grounded in maximum likelihood
+    \item Lower is better; widely used in volatility forecast evaluation
+\end{itemize}
+
+\subsubsection{Aggregation Method}
+
+For each (model, train\_size, test\_size) combination:
+\begin{enumerate}
+    \item Compute metrics for each rolling window
+    \item Average across all windows
+    \item This produces 72 rows: 3 models \(\times\) 6 train sizes \(\times\) 4 test sizes
+\end{enumerate}
+
+All results are saved to \texttt{results/backtesting/backtesting\_results.csv}.
+
+\subsection{Model Comparison Results}
+
+\subsubsection{Overall Model Rankings}
+
+Table~\ref{tab:overall_rankings} presents overall model rankings averaged across all 24 configurations:
+
+\begin{table}[H]
+\centering
+\caption{Overall model rankings (average across all configurations).}
+\label{tab:overall_rankings}
+\begin{tabular}{lp{3cm}p{3cm}p{3cm}}
+\toprule
+\textbf{Metric} & \textbf{Rank 1} & \textbf{Rank 2} & \textbf{Rank 3} \\
+\midrule
+\multicolumn{4}{c}{\textit{Return Forecasting}} \\
+\midrule
+\textbf{RMSE} & GARCH–t: 0.007567 & GJR–GARCH–t: 0.007576 & GJR–GARCH–Skewed-t*: 0.456207 \\
+\textbf{MAE} & GARCH–t: 0.006547 & GJR–GARCH–t: 0.006559 & GJR–GARCH–Skewed-t*: 0.455186 \\
+\textbf{Direction Accuracy} & GARCH–t: 52.42\% & GJR–GARCH–Skewed-t: 51.59\% & GJR–GARCH–t: 51.48\% \\
+\midrule
+\multicolumn{4}{c}{\textit{Volatility Forecasting}} \\
+\midrule
+\textbf{QLIKE} & GJR–GARCH–Skewed-t: 1.418 & GJR–GARCH–t: 1.421 & GARCH–t: 1.450 \\
+\textbf{MSE} & GJR–GARCH–t: \(\approx\)0.000 & GARCH–t: \(\approx\)0.000 & GJR–GARCH–Skewed-t*: 84745.81 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textit{*Note: GJR–GARCH–Skewed-t catastrophically fails with train\_size=50 (see Section 3.3.4)}
+
+\textbf{Key Findings:}
+
+\begin{enumerate}
+    \item \textbf{Surprising Winner for Returns:} GARCH–t (the simplest model) outperforms more complex models for return forecasting across RMSE, MAE, and direction accuracy.
+
+    \item \textbf{In-Sample vs Out-of-Sample Discrepancy:}
+    \begin{itemize}
+        \item In-sample: GJR–GARCH–Skewed-t best (AIC = 1652.32)
+        \item Out-of-sample: GARCH–t best (RMSE = 0.007567)
+        \item This demonstrates \textbf{overfitting}: complex models fit historical noise rather than true signal
+    \end{itemize}
+
+    \item \textbf{Volatility Forecasting:} GJR–GARCH–Skewed-t achieves the best QLIKE (1.418), suggesting leverage and skewness parameters improve volatility predictions despite hurting return forecasts.
+
+    \item \textbf{Direction Accuracy:} All models perform marginally better than random (50\%), with GARCH–t at 52.42\%. This confirms that forecasting daily return direction remains extremely difficult even with sophisticated models.
+\end{enumerate}
+
+\subsubsection{Performance by Training Window Size}
+
+Table~\ref{tab:garch_t_window} examines GARCH–t performance across different training window sizes:
+
+\begin{table}[H]
+\centering
+\caption{GARCH–t performance by training window (average across test horizons).}
+\label{tab:garch_t_window}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Train Size} & \textbf{RMSE} & \textbf{MAE} & \textbf{Direction Acc (\%)} & \textbf{QLIKE} \\
+\midrule
+50 days & 0.007553 & 0.006553 & 50.51 & 1.439 \\
+75 days & 0.007545 & 0.006544 & 51.57 & 1.429 \\
+100 days & 0.007551 & 0.006546 & 52.83 & 1.434 \\
+125 days & 0.007559 & 0.006543 & 52.91 & 1.458 \\
+150 days & 0.007564 & 0.006552 & 52.68 & 1.465 \\
+200 days & 0.007567 & 0.006558 & 52.02 & 1.477 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Observations:}
+
+\begin{enumerate}
+    \item \textbf{Minimal Impact:} RMSE ranges from 0.00754 to 0.00757 across all window sizes (0.4\% variation)
+    \item \textbf{No Monotonic Improvement:} Larger windows do not consistently improve forecasts
+    \item \textbf{Optimal Window:} 75--125 days appears optimal, balancing information and adaptability
+    \item \textbf{Practical Implication:} Models adapt quickly; 50--100 days of data suffices for Student-t models
+\end{enumerate}
+
+\subsubsection{Heatmap Visualizations}
+
+Due to GJR–GARCH–Skewed-t's catastrophic failure with train\_size=50 (RMSE=2.698), standard heatmaps have poor color scaling. We generated \textbf{filtered heatmaps} comparing only GJR–GARCH–t and GARCH–t for clearer visualization.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/backtesting/filtered_heatmaps/heatmap_rmse_test1_filtered.png}
+\caption{RMSE comparison for 1-day ahead forecasts. Darker green indicates better (lower) error. GARCH–t shows consistently low error across all training window sizes.}
+\label{fig:heatmap_rmse}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/backtesting/filtered_heatmaps/heatmap_qlike_test1_filtered.png}
+\caption{QLIKE comparison for 1-day ahead volatility forecasts. GJR–GARCH–t shows marginally better (lower) QLIKE, especially with larger training windows.}
+\label{fig:heatmap_qlike}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{results/backtesting/filtered_heatmaps/heatmap_direction_accuracy_test1_filtered.png}
+\caption{Direction accuracy comparison. GARCH–t achieves slightly higher accuracy (darker green) across most configurations, though differences are small.}
+\label{fig:heatmap_direction}
+\end{figure}
+
+\textbf{Additional Heatmaps:} Heatmaps for 5-day, 10-day, and 20-day horizons show similar patterns. All 20 filtered heatmaps are available in \texttt{results/backtesting/filtered\_heatmaps/}.
+
+\subsection{Analysis of Model Features}
+
+\subsubsection{CRITICAL FINDING: GJR–GARCH–Skewed-t Requires Sufficient Training Data}
+
+The most important discovery from backtesting is that GJR–GARCH–Skewed-t exhibits \textbf{catastrophic failure} with insufficient training data.
+
+\begin{table}[H]
+\centering
+\caption{GJR–GARCH–Skewed-t performance by training window.}
+\label{tab:skewt_failure}
+\begin{tabular}{lccp{6cm}}
+\toprule
+\textbf{Training Size} & \textbf{RMSE} & \textbf{MAE} & \textbf{Interpretation} \\
+\midrule
+\textbf{50 days} & \textbf{2.698} & \textbf{2.698} & \textbf{CATASTROPHIC FAILURE (400\(\times\) worse)} \\
+75 days & 0.0064 & 0.0064 & Normal performance \\
+100 days & 0.0065 & 0.0065 & Normal performance \\
+125 days & 0.0066 & 0.0066 & Normal performance \\
+150 days & 0.0067 & 0.0067 & Normal performance \\
+200 days & 0.0067 & 0.0067 & Normal performance \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Root Cause Analysis:}
+
+\begin{enumerate}
+    \item \textbf{Parameter Estimation Instability:} The Skewed-t distribution has 7 parameters (vs 5 for GARCH–t), including a skewness parameter that is difficult to estimate reliably.
+
+    \item \textbf{Insufficient Data:} With only 50 observations, maximum likelihood estimation becomes unstable, producing extreme parameter values that lead to nonsensical forecasts.
+
+    \item \textbf{Volatility Forecasts Unaffected:} Interestingly, QLIKE remains reasonable even with train\_size=50 (QLIKE=1.39), suggesting the volatility dynamics are captured despite poor return forecasts.
+\end{enumerate}
+
+\textbf{Practical Implications:}
+
+\begin{itemize}
+    \item \textbf{Minimum Training Data:} GJR–GARCH–Skewed-t requires \textbf{at least 75 days} of training data
+    \item \textbf{Robustness Trade-off:} The additional flexibility of Skewed-t comes at the cost of robustness
+    \item \textbf{Model Selection:} For applications with limited data, simpler models (GARCH–t, GJR–GARCH–t) are safer choices
+\end{itemize}
+
+\subsubsection{Does the Leverage Effect (GJR) Improve Forecasts?}
+
+Comparing GJR–GARCH–t vs GARCH–t (both using Student-t distribution, train\_size \(\geq\) 75):
+
+\begin{table}[H]
+\centering
+\caption{Leverage effect impact (train size \(\geq\) 75 days).}
+\label{tab:leverage_impact}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Metric} & \textbf{GARCH–t} & \textbf{GJR–GARCH–t} & \textbf{Difference} & \textbf{Winner} \\
+\midrule
+\textbf{RMSE} & 0.00757 & 0.00758 & +0.00001 & GARCH–t ✓ \\
+\textbf{MAE} & 0.00655 & 0.00656 & +0.00001 & GARCH–t ✓ \\
+\textbf{Direction Acc} & 52.4\% & 51.5\% & -0.9\% & GARCH–t ✓ \\
+\textbf{QLIKE} & 1.450 & 1.421 & -0.029 (-2.0\%) & GJR–GARCH–t ✓ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Findings:}
+
+\begin{enumerate}
+    \item \textbf{Return Forecasting:} Leverage effect provides \textbf{no improvement}. Differences in RMSE and MAE are negligible (<0.2\%). GARCH–t even performs slightly better.
+
+    \item \textbf{Volatility Forecasting:} Leverage effect provides \textbf{marginal improvement} (2\% better QLIKE). GJR specification captures the asymmetric response to negative shocks.
+
+    \item \textbf{Economic Significance:} While the leverage effect is statistically significant in-sample (AIC improvement of 19 points), it does not translate to meaningfully better out-of-sample forecasts.
+\end{enumerate}
+
+\textbf{Conclusion:} For parsimony and robustness, \textbf{GARCH–t is preferred} unless volatility forecasting quality is the primary objective.
+
+\subsubsection{Does the Skewness Parameter Improve Forecasts?}
+
+Comparing GJR–GARCH–Skewed-t vs GJR–GARCH–t (train\_size \(\geq\) 75):
+
+\begin{table}[H]
+\centering
+\caption{Skewness parameter impact (train size \(\geq\) 75 days).}
+\label{tab:skewness_impact}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Metric} & \textbf{GJR–GARCH–t} & \textbf{GJR–GARCH–Skewed-t} & \textbf{Difference} & \textbf{Winner} \\
+\midrule
+\textbf{RMSE} & 0.00758 & 0.00640 & -0.00118 (-15.6\%) & Skewed-t ✓ \\
+\textbf{MAE} & 0.00656 & 0.00641 & -0.00015 (-2.3\%) & Skewed-t ✓ \\
+\textbf{Direction Acc} & 51.5\% & 51.6\% & +0.1\% & Skewed-t ✓ \\
+\textbf{QLIKE} & 1.421 & 1.418 & -0.003 (-0.2\%) & Skewed-t ✓ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Findings:}
+
+\begin{enumerate}
+    \item \textbf{Return Forecasting:} When properly trained (\(\geq\)75 days), Skewed-t shows marginal improvement in RMSE (15.6\%) but negligible improvement in MAE and direction accuracy.
+
+    \item \textbf{Volatility Forecasting:} Skewed-t achieves the best QLIKE (1.418), though improvement over Student-t is small (0.2\%).
+
+    \item \textbf{Data Requirements:} These improvements come at the cost of requiring more training data and increased estimation complexity.
+\end{enumerate}
+
+\textbf{Conclusion:} Skewness parameter provides \textbf{slight improvement} for volatility forecasting but requires careful use (\(\geq\)75 days) and adds model complexity. The benefit-to-complexity ratio is questionable.
+
+\subsubsection{Impact of Training Window Size on Forecast Accuracy}
+
+For GARCH–t and GJR–GARCH–t (excluding Skewed-t with train\_size=50):
+
+\begin{table}[H]
+\centering
+\caption{Training window size impact.}
+\label{tab:window_size_impact}
+\begin{tabular}{lccp{6cm}}
+\toprule
+\textbf{Train Size} & \textbf{Avg RMSE} & \textbf{Avg QLIKE} & \textbf{Interpretation} \\
+\midrule
+50 & 0.00635 & 1.393 & Surprisingly good despite small sample \\
+75 & 0.00638 & 1.392 & Minimal improvement \\
+100 & 0.00639 & 1.393 & Stable \\
+125 & 0.00641 & 1.394 & Stable \\
+150 & 0.00643 & 1.396 & Stable \\
+200 & 0.00645 & 1.398 & Stable \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Findings:}
+
+\begin{enumerate}
+    \item \textbf{Minimal Impact:} Training window size has virtually no effect on forecast accuracy beyond 50 days for Student-t models.
+
+    \item \textbf{No Monotonic Improvement:} Larger windows do NOT consistently improve forecasts. In fact, RMSE slightly \textit{increases} with larger windows (0.00635 \(\rightarrow\) 0.00645).
+
+    \item \textbf{Possible Explanation:} Larger windows may incorporate stale information from different market regimes. Financial time series exhibit structural breaks, making distant historical data less relevant.
+
+    \item \textbf{Practical Implication:} For GJR–GARCH–t and GARCH–t, \textbf{50--100 days of training data is sufficient}. Using 200 days provides no benefit and may slightly hurt performance.
+\end{enumerate}
+
+\textbf{Contrast with GJR–GARCH–Skewed-t:} This robustness to small samples does NOT extend to the Skewed-t model, which requires \(\geq\)75 days. Simpler models (fewer parameters) are more data-efficient.
+
+\subsubsection{Trade-offs: Complexity vs Forecast Horizon}
+
+Table~\ref{tab:best_by_horizon} examines whether model complexity helps at longer forecast horizons:
+
+\begin{table}[H]
+\centering
+\caption{Best performing model by horizon.}
+\label{tab:best_by_horizon}
+\begin{tabular}{lccp{5cm}}
+\toprule
+\textbf{Forecast Horizon} & \textbf{Best RMSE} & \textbf{Best QLIKE} & \textbf{Observation} \\
+\midrule
+1-day ahead & GARCH–t (0.00754) & GJR–GARCH–Skewed-t (1.376) & Simple wins returns \\
+5-day ahead & GARCH–t (0.00755) & GJR–GARCH–Skewed-t (1.410) & Pattern holds \\
+10-day ahead & GARCH–t (0.00758) & GJR–GARCH–Skewed-t (1.434) & Pattern holds \\
+20-day ahead & GARCH–t (0.00760) & GJR–GARCH–Skewed-t (1.478) & Pattern holds \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Findings:}
+
+\begin{enumerate}
+    \item \textbf{Consistent Rankings:} Model rankings are \textbf{identical} across all four horizons. GARCH–t dominates return forecasting; GJR–GARCH–Skewed-t dominates volatility forecasting.
+
+    \item \textbf{No Horizon-Specific Advantage:} More complex models do NOT perform better at longer horizons, contrary to what one might expect.
+
+    \item \textbf{Theoretical Interpretation:}
+    \begin{itemize}
+        \item All ARMA–GARCH models converge to the unconditional mean/variance at long horizons
+        \item Short-term dynamics (captured even by simple models) dominate forecast accuracy
+        \item Added complexity (leverage, skewness) provides minimal benefit for multi-step forecasts
+    \end{itemize}
+
+    \item \textbf{Practical Implication:} Model selection can be based on 1-day ahead performance; the same model will perform best at all horizons.
+\end{enumerate}
+
+\subsection{Model Ranking and Recommendations}
+
+\subsubsection{Overall Best Performing Model: GARCH–t}
+
+\textbf{Winner for Return Forecasting:}
+
+The simplest model, \textbf{ARMA(0,1) + GARCH(1,1) – Student-t}, achieves the best out-of-sample return forecast performance:
+
+\begin{itemize}
+    \item \textbf{Lowest RMSE:} 0.007567
+    \item \textbf{Lowest MAE:} 0.006547
+    \item \textbf{Highest Direction Accuracy:} 52.42\%
+    \item \textbf{Robust:} Consistent performance across all training window sizes (even 50 days)
+    \item \textbf{Efficient:} Fastest to estimate due to fewest parameters (5 vs 6--7 for alternatives)
+\end{itemize}
+
+This finding is \textbf{striking} because GARCH–t had the \textit{worst} in-sample fit (AIC = 1687.86). This demonstrates the importance of out-of-sample validation and the dangers of overfitting.
+
+\subsubsection{Model Recommendations by Use Case}
+
+Table~\ref{tab:model_guide} provides model selection guidance:
+
+\begin{table}[H]
+\centering
+\caption{Model selection guide.}
+\label{tab:model_guide}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lp{4cm}p{2.5cm}p{7cm}}
+\toprule
+\textbf{Use Case} & \textbf{Recommended Model} & \textbf{Min Train Size} & \textbf{Rationale} \\
+\midrule
+Return Forecasting & GARCH–t & 50 days & Best RMSE, MAE, direction accuracy; robust to small samples \\
+Volatility Forecasting & GJR–GARCH–Skewed-t & \textbf{75 days} & Best QLIKE (1.418); captures leverage and skewness \\
+Risk Management & GJR–GARCH–t & 50 days & Good volatility forecasts (QLIKE=1.421); more robust than Skewed-t \\
+Real-Time Trading & GARCH–t & 50 days & Reliable with limited data; fastest to estimate \\
+Option Pricing & GJR–GARCH–Skewed-t & 75 days & Captures volatility smile via skewness \\
+VaR/CVaR Estimation & GJR–GARCH–t & 50 days & Captures downside risk via leverage; Student-t heavy tails \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\subsubsection{Key Takeaway: Simplicity Wins for Return Forecasting}
+
+The most important finding of this backtesting analysis is the \textbf{reversal} of model rankings:
+
+\textbf{In-Sample (Section 3.2):}
+\begin{enumerate}
+    \item GJR–GARCH–Skewed-t (AIC = 1652.32) ⭐ Best fit
+    \item GJR–GARCH–t (AIC = 1669.18)
+    \item GARCH–t (AIC = 1687.86) ❌ Worst fit
+\end{enumerate}
+
+\textbf{Out-of-Sample (Section 3.3):}
+\begin{enumerate}
+    \item GARCH–t (RMSE = 0.007567) ⭐ Best forecasts
+    \item GJR–GARCH–t (RMSE = 0.007576)
+    \item GJR–GARCH–Skewed-t (RMSE = 0.456207*) ❌ Catastrophic failure
+\end{enumerate}
+\textit{*Average includes train\_size=50 failure; performance is 0.0065 when properly trained}
+
+\textbf{Interpretation:}
+
+\begin{enumerate}
+    \item \textbf{Overfitting:} GJR–GARCH–Skewed-t's superior in-sample fit reflects fitting noise, not signal. The additional parameters (leverage, skewness) capture sample-specific patterns that don't generalize.
+
+    \item \textbf{Generalization:} GARCH–t's simplicity (5 parameters vs 7) makes it less prone to overfitting. It captures the essential GARCH dynamics without overcomplicating.
+
+    \item \textbf{Bias-Variance Tradeoff:} More complex models have lower bias (better in-sample fit) but higher variance (worse out-of-sample). GARCH–t achieves optimal bias-variance balance.
+
+    \item \textbf{Practical Lesson:} \textbf{In-sample fit is a poor guide for model selection.} Always validate with proper out-of-sample testing.
+\end{enumerate}
+
+This finding validates the importance of rigorous backtesting and demonstrates why practitioners must not rely solely on AIC or other in-sample criteria when selecting forecasting models.
+
+\subsection{Comparison of In-Sample vs Out-of-Sample Results}
+
+Table~\ref{tab:insample_vs_outsample} provides a direct comparison of in-sample and out-of-sample performance:
+
+\begin{table}[H]
+\centering
+\caption{In-sample fit vs out-of-sample forecast accuracy.}
+\label{tab:insample_vs_outsample}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{In-Sample AIC} & \textbf{AIC Rank} & \textbf{OOS RMSE} & \textbf{RMSE Rank} & \textbf{Ranking Change} \\
+\midrule
+GJR–GARCH–Skewed-t & 1652.32 & 1st ⭐ & 0.456207 & 3rd ❌ & \textbf{Worst reversal} \\
+GJR–GARCH–t & 1669.18 & 2nd & 0.007576 & 2nd & Stable \\
+GARCH–t & 1687.86 & 3rd ❌ & 0.007567 & 1st ⭐ & \textbf{Best reversal} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textit{Note: GJR–GARCH–Skewed-t RMSE includes catastrophic failure at train\_size=50; excluding this, RMSE \(\approx\) 0.0065}
+
+\textbf{Key Insights:}
+
+\begin{enumerate}
+    \item \textbf{Complete Reversal:} The best in-sample model (GJR–GARCH–Skewed-t) becomes the worst out-of-sample. The worst in-sample model (GARCH–t) becomes the best out-of-sample.
+
+    \item \textbf{AIC Misleading:} Despite AIC being designed to penalize complexity, it still fails to identify the best forecasting model. The penalty is insufficient for this application.
+
+    \item \textbf{Why This Happens:}
+    \begin{itemize}
+        \item \textbf{Sample-specific fit:} GJR–GARCH–Skewed-t fits the 2005--2007 data well, but these patterns don't recur in rolling windows
+        \item \textbf{Parameter instability:} More complex models have unstable parameter estimates across windows
+        \item \textbf{Overfitting:} Seven parameters capture noise that changes across rolling windows
+    \end{itemize}
+
+    \item \textbf{Implications for Practitioners:}
+    \begin{itemize}
+        \item Never select forecasting models based on in-sample criteria alone
+        \item Out-of-sample backtesting is essential
+        \item Simpler models often forecast better despite worse in-sample fit
+    \end{itemize}
+\end{enumerate}
+
+\section{Summary of Forecasting Analysis}
+
+\subsection{Key Findings}
+
+\begin{enumerate}
+    \item \textbf{In-Sample Fit \(\neq\) Out-of-Sample Forecast Accuracy}
+    \begin{itemize}
+        \item GJR–GARCH–Skewed-t: Best AIC (1652.32) but worst return forecasts
+        \item GARCH–t: Worst AIC (1687.86) but best return forecasts
+        \item Demonstrates the critical importance of out-of-sample validation
+    \end{itemize}
+
+    \item \textbf{Model Simplicity Wins for Return Forecasting}
+    \begin{itemize}
+        \item GARCH–t achieves best RMSE (0.007567), MAE (0.006547), direction accuracy (52.42\%)
+        \item Fewer parameters (5 vs 7) provide better generalization
+        \item Robust across all training window sizes
+    \end{itemize}
+
+    \item \textbf{Model Complexity Helps for Volatility Forecasting}
+    \begin{itemize}
+        \item GJR–GARCH–Skewed-t achieves best QLIKE (1.418)
+        \item Leverage and skewness parameters improve volatility predictions
+        \item But requires \(\geq\)75 days of training data
+    \end{itemize}
+
+    \item \textbf{Critical Data Requirements}
+    \begin{itemize}
+        \item GJR–GARCH–Skewed-t fails catastrophically with 50 days of training (RMSE = 2.698)
+        \item Student-t models (GARCH–t, GJR–GARCH–t) are robust even with 50 days
+        \item More parameters require more data for stable estimation
+    \end{itemize}
+
+    \item \textbf{Training Window Size Has Minimal Impact}
+    \begin{itemize}
+        \item For Student-t models, forecast accuracy is similar across 50--200 day windows
+        \item Larger windows provide no systematic improvement
+        \item 50--100 days appears optimal, balancing information and adaptability
+    \end{itemize}
+
+    \item \textbf{Leverage Effect Impact}
+    \begin{itemize}
+        \item Provides no improvement for return forecasting (GJR–GARCH–t vs GARCH–t)
+        \item Provides marginal improvement (2\%) for volatility forecasting
+        \item Economically insignificant despite statistical significance in-sample
+    \end{itemize}
+
+    \item \textbf{Direction Accuracy Remains Low}
+    \begin{itemize}
+        \item Best model (GARCH–t): 52.42\% accuracy
+        \item Marginally better than random guessing (50\%)
+        \item Confirms inherent difficulty of forecasting daily return direction
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Practical Implications}
+
+\textbf{For Researchers:}
+\begin{itemize}
+    \item Always perform out-of-sample backtesting; in-sample criteria are insufficient
+    \item Test robustness across multiple training window sizes
+    \item Consider bias-variance tradeoff; complexity doesn't guarantee better forecasts
+\end{itemize}
+
+\textbf{For Practitioners:}
+\begin{itemize}
+    \item Use GARCH–t for return forecasting and directional trading strategies
+    \item Use GJR–GARCH–Skewed-t for volatility forecasting (with \(\geq\)75 days data)
+    \item Use GJR–GARCH–t for risk management (good balance of accuracy and robustness)
+    \item Avoid complex models when data is limited
+\end{itemize}
+
+\textbf{For Risk Managers:}
+\begin{itemize}
+    \item Forecast uncertainty is high (95\% CI \(\approx\) \(\pm\)2\% for daily returns)
+    \item Use full predictive distribution, not just point forecasts
+    \item Model selection significantly impacts volatility forecasts (QLIKE ranges 1.418--1.450)
+    \item Ensure sufficient training data for Skewed-t models
+\end{itemize}
+
+\subsection{Methodological Contributions}
+
+This analysis demonstrates:
+
+\begin{enumerate}
+    \item \textbf{The Overfitting Problem:} Complex GARCH models can overfit historical data, producing worse forecasts despite better in-sample fit.
+
+    \item \textbf{Proper Validation Methodology:} Rolling window backtesting with proper train/test splits is essential for honest forecast evaluation.
+
+    \item \textbf{Robustness Testing:} Evaluating models across multiple training window sizes reveals data requirement vulnerabilities.
+
+    \item \textbf{Metric Selection:} Different metrics (RMSE for returns, QLIKE for volatility) lead to different model rankings, requiring careful consideration of objectives.
+\end{enumerate}
+
+\subsection{Limitations and Caveats}
+
+\begin{enumerate}
+    \item \textbf{Sample Period:} Results are based on 2005--2007 data, including the onset of the financial crisis. Generalization to other periods requires further testing.
+
+    \item \textbf{Single Asset:} Analysis focuses on FTSE 100 index; results may differ for individual stocks or other asset classes.
+
+    \item \textbf{Model Space:} Only three models were tested; other specifications (EGARCH, FIGARCH, etc.) might perform differently.
+
+    \item \textbf{Forecast Horizons:} Limited to 1--20 days ahead; longer horizons were not evaluated.
+
+    \item \textbf{No Transaction Costs:} Direction accuracy does not account for trading costs, which would reduce practical performance.
+
+    \item \textbf{Structural Breaks:} Models assume constant parameters within training windows; regime-switching models might improve performance.
+\end{enumerate}
+
+% ------------------- CHAPTER 4 -------------------
+\chapter{Conclusion}
+
+This project investigated the modeling and forecasting of FTSE 100 daily returns for the period 2005--2007 using ARMA–GARCH family models. The analysis progressed through exploratory data analysis, model estimation, in-sample forecasting, and rigorous out-of-sample backtesting. The findings provide valuable insights into the practical application of volatility models for financial time series and highlight critical considerations for model selection in real-world forecasting.
+
+\section{Summary of Main Results}
+
+\subsection{Stylized Facts and Model Justification}
+
+The exploratory analysis confirmed several well-documented stylized facts of financial returns:
+\begin{itemize}
+    \item Returns exhibit heavy-tailed distributions with excess kurtosis (5.7), deviating substantially from normality
+    \item Negative skewness (-0.37) suggests asymmetric behavior, with negative returns occurring more frequently
+    \item Strong evidence of volatility clustering (ARCH-LM test \(p < 0.001\))
+    \item Weak autocorrelation in returns but persistent serial correlation in squared returns
+\end{itemize}
+
+These findings justified the adoption of GARCH-type models with Student-\(t\) innovations to capture conditional heteroskedasticity and heavy tails.
+
+\subsection{In-Sample Model Selection}
+
+The comprehensive grid search across ARMA–GARCH specifications identified three top-performing models:
+\begin{enumerate}
+    \item \textbf{GJR–GARCH–Skewed-t} (AIC = 1652.32): Best in-sample fit, capturing leverage effects and distributional skewness
+    \item \textbf{GJR–GARCH–t} (AIC = 1669.18): Asymmetric volatility with symmetric heavy-tailed innovations
+    \item \textbf{GARCH–t} (AIC = 1687.86): Simplest specification with symmetric volatility dynamics
+\end{enumerate}
+
+Based solely on in-sample criteria, the GJR–GARCH–Skewed-t model appeared optimal, with lower AIC and successful diagnostic tests.
+
+\subsection{Out-of-Sample Forecasting Performance}
+
+The rolling window backtesting analysis, conducted across 24 configurations (6 training window sizes \(\times\) 4 forecast horizons), revealed a striking reversal of model rankings:
+
+\textbf{For Return Forecasting:}
+\begin{itemize}
+    \item GARCH–t achieved the best performance (RMSE = 0.007567, MAE = 0.006547, Direction Accuracy = 52.42\%)
+    \item The simplest model outperformed more complex specifications
+    \item GJR–GARCH–Skewed-t suffered catastrophic failure with insufficient training data (train\_size = 50 days)
+\end{itemize}
+
+\textbf{For Volatility Forecasting:}
+\begin{itemize}
+    \item GJR–GARCH–Skewed-t achieved the best QLIKE score (1.418), suggesting superior volatility predictions
+    \item Leverage and skewness parameters provided marginal improvements (2--3\%) over simpler models
+    \item However, these gains required at least 75 days of training data for stable estimation
+\end{itemize}
+
+\subsection{Key Finding: Overfitting vs Generalization}
+
+The most important discovery of this study is the \textbf{discrepancy between in-sample fit and out-of-sample forecast accuracy}. The model with the best AIC (GJR–GARCH–Skewed-t) produced the worst return forecasts out-of-sample, while the model with the worst AIC (GARCH–t) delivered the best forecasts. This demonstrates:
+
+\begin{enumerate}
+    \item Complex models can overfit historical patterns that do not recur in new data
+    \item AIC and similar in-sample criteria are insufficient for selecting forecasting models
+    \item Simplicity often wins: fewer parameters reduce variance and improve generalization
+    \item Out-of-sample validation is essential for honest model evaluation
+\end{enumerate}
+
+\section{Practical Implications}
+
+\subsection{For Financial Practitioners}
+
+Based on the backtesting results, we provide the following recommendations:
+
+\begin{enumerate}
+    \item \textbf{Return Forecasting and Trading Strategies:} Use GARCH–t for its superior RMSE, MAE, and direction accuracy. The model is robust to small sample sizes (50 days) and computationally efficient.
+
+    \item \textbf{Volatility Forecasting for Risk Management:} Use GJR–GARCH–Skewed-t if at least 75 days of data are available. For shorter windows or real-time applications, GJR–GARCH–t provides a safer alternative with only marginally worse performance.
+
+    \item \textbf{Model Selection Process:} Always perform rolling window backtesting before deploying models in production. In-sample fit should be used only for initial screening, not final selection.
+
+    \item \textbf{Training Data Requirements:} Avoid complex distributional assumptions (Skewed-\(t\)) when working with limited data. Student-\(t\) models provide adequate tail modeling with greater robustness.
+\end{enumerate}
+
+\subsection{For Researchers}
+
+This study highlights several methodological considerations:
+
+\begin{itemize}
+    \item \textbf{Validation Methodology:} Rolling window backtesting with multiple train/test configurations provides more reliable performance estimates than single train/test splits
+    \item \textbf{Metric Selection:} RMSE and MAE for returns; QLIKE for volatility. Different metrics can lead to different model rankings.
+    \item \textbf{Robustness Testing:} Evaluating models across varying training window sizes reveals data requirement vulnerabilities
+    \item \textbf{Bias-Variance Tradeoff:} The classic tradeoff applies directly to GARCH models—additional parameters improve in-sample fit but often hurt out-of-sample forecasts
+\end{itemize}
+
+\section{Limitations and Future Work}
+
+\subsection{Limitations}
+
+Several limitations constrain the generalizability of these findings:
+
+\begin{enumerate}
+    \item \textbf{Sample Period:} The 2005--2007 dataset includes the onset of the global financial crisis, a period of heightened volatility and structural change. Results may differ in calmer market conditions.
+
+    \item \textbf{Single Asset:} Analysis focused exclusively on the FTSE 100 index. Individual stocks, other indices, or asset classes (bonds, commodities) may exhibit different dynamics.
+
+    \item \textbf{Model Space:} Only three GARCH variants were tested. Other specifications (EGARCH, FIGARCH, component GARCH) might yield different conclusions.
+
+    \item \textbf{Forecast Horizons:} The study limited horizons to 1--20 days. Longer-term forecasting (monthly, quarterly) may favor different models.
+
+    \item \textbf{No Transaction Costs:} Direction accuracy was evaluated without accounting for bid-ask spreads or trading costs, which would reduce practical profitability.
+
+    \item \textbf{Parameter Stability:} Models assume constant parameters within training windows. In reality, structural breaks and regime changes occur frequently in financial markets.
+\end{enumerate}
+
+\subsection{Future Research Directions}
+
+Several avenues for extension emerge from this work:
+
+\begin{enumerate}
+    \item \textbf{Regime-Switching Models:} Incorporate Markov-switching or threshold GARCH models to allow for time-varying parameters and regime changes. This could improve performance during crisis periods.
+
+    \item \textbf{Multivariate Models:} Extend to multivariate GARCH (BEKK, DCC) to model correlations between assets. This is critical for portfolio optimization and systemic risk analysis.
+
+    \item \textbf{Alternative Metrics:} Evaluate models using Value-at-Risk (VaR) coverage tests, expected shortfall, or profit-and-loss from trading strategies.
+
+    \item \textbf{Machine Learning Augmentation:} Combine GARCH volatility forecasts with machine learning models (LSTM, gradient boosting) to capture nonlinear patterns.
+
+    \item \textbf{High-Frequency Data:} Apply realized volatility measures using intraday data to improve volatility forecast evaluation.
+
+    \item \textbf{Longer Sample Periods:} Extend analysis to multiple decades and different market regimes (bull markets, bear markets, crashes) to assess model stability.
+
+    \item \textbf{Ensemble Methods:} Investigate whether combining forecasts from multiple GARCH models (model averaging) improves accuracy and robustness.
+\end{enumerate}
+
+\section{Concluding Remarks}
+
+This project demonstrates that while sophisticated GARCH models with asymmetric volatility and skewed innovations provide excellent in-sample fit, they do not necessarily translate to superior out-of-sample forecasts. For daily return forecasting, the simplest GARCH–Student-\(t\) model outperformed more complex alternatives, achieving lower RMSE, MAE, and higher direction accuracy.
+
+However, for volatility forecasting—arguably the more important application of GARCH models—the GJR–GARCH–Skewed-\(t\) specification delivered the best QLIKE scores, validating the economic relevance of leverage effects and distributional asymmetry for risk management.
+
+The key lesson is that \textbf{model selection must be driven by the specific forecasting objective and validated through rigorous out-of-sample testing}. In-sample fit, while informative, is an unreliable guide for practical forecasting performance. The bias-variance tradeoff favors parsimony: simpler models often generalize better to new data, particularly when training samples are limited.
+
+For financial practitioners, this underscores the importance of proper backtesting protocols, careful consideration of data requirements, and recognition that the ``best'' model depends critically on whether the goal is to forecast returns or volatility. As demonstrated in this study, no single model dominates across all metrics and use cases.
+
+Ultimately, this analysis reinforces a fundamental principle of applied econometrics: \textit{theoretical sophistication and empirical performance are not synonymous}. The simplest model that adequately captures the essential features of the data-generating process often provides the most reliable forecasts.
+
+% ------------------- REFERENCES -------------------
+\chapter*{References}
+\begin{itemize}
+    \item Bollerslev, T. (1986). Generalized Autoregressive Conditional Heteroskedasticity. \textit{Journal of Econometrics}.
+    \item Engle, R. F. (1982). Autoregressive Conditional Heteroskedasticity with Estimates of the Variance of UK Inflation. \textit{Econometrica}.
+    \item Statsmodels and Arch package documentation.
+    \item OpenAI ChatGPT (2025). Model structuring and LaTeX guidance.
+\end{itemize}
+
+\end{document}

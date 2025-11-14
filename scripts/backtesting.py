@@ -546,7 +546,7 @@ def main():
             ascending=(metric != 'direction_accuracy')  # Higher is better for accuracy
         )
         for rank, (model, score) in enumerate(ranking.items(), 1):
-            marker = "⭐" if rank == 1 else "  "
+            marker = ""
             if metric == 'direction_accuracy':
                 print(f"  {rank}. {marker} {model:25s} {score*100:6.2f}%")
             else:
