@@ -35,10 +35,13 @@ Results for `EDA.py` are stored in `results/eda/` while results for `analysis.py
 ---
 Make sure you are in the `scripts/` directory. Ensure that you have set up the dependencies from requirements.txt on your system an run the following two commands: 
 
-```
+```bash
 python3 model_grid_search.py
 python3 advanced_model_grid_search.py
 ```
+
+- `scripts\model_grid_search.py` searches over simple models keeping in mind the insights obtained in the EDA phase to obtain the best combination of parameters and distributions 
+- `scripts\advanced_model_grid_search.py` searches over more complicated volatility models keeping the returns model fixed to better explain volatility effects and figure out optimal parameter settings
 
 Plots and results will be stored in `results/model_grid_outputs/` and `results/model_grid_advanced_outputs/` respectively.
 
