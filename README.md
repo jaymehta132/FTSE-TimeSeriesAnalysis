@@ -2,6 +2,17 @@
 
 Instructions for running-
 
+For running the model selection part
+___
+Make sure you are in the `scripts/` directory. Ensure that you have set up the dependencies from requirements.txt on your system an run the following two commands: 
+
+```
+python3 model_grid_search.py
+python3 advanced_model_grid_search.py
+```
+
+Plots and results will be stored in `results/model_grid_outputs/` and `results/model_grid_advanced_outputs/` respectively.
+
 For running forecasting part
 ---
 Make sure you are in this directory where `scripts`, `results` and `data` are
