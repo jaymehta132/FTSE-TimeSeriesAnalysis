@@ -11,7 +11,7 @@ print("Loaded backtesting results")
 print(f"Models in data: {df['model'].unique()}")
 
 df_filtered = df.copy()
-print(f"\nAfter filtering: {df_filtered['model'].unique()}")
+print(f"\nAfter filtering: {df_filtered['model'].unique()}\nm")
 
 output_dir = Path("results/backtesting/filtered_heatmaps")
 output_dir.mkdir(exist_ok=True)

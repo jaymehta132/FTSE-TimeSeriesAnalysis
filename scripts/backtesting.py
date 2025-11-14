@@ -217,7 +217,7 @@ def run_backtesting_grid(df, train_sizes, test_sizes, model_specs):
     all_results = []
 
     logger.info(f"Running optimized backtesting across {len(train_sizes)} training window sizes...")
-    logger.info(f"For each window, forecasting {len(test_sizes)} horizons: {test_sizes}")
+    logger.info(f"\nmFor each window, forecasting {len(test_sizes)} horizons: {test_sizes}")
 
     for train_idx, train_size in enumerate(train_sizes, 1):
         logger.info(f"\n{'='*80}")
@@ -357,7 +357,7 @@ def main():
     seed_everything(config.get("seed", 42))
 
     logger.info("=" * 80)
-    logger.info("FTSE 100 Rolling Window Backtesting")
+    logger.info("FTSE 100 Rolling Window Backtesting\n")
     logger.info("=" * 80)
 
     output_dir = "results/backtesting"

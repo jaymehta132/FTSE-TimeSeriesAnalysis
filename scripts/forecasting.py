@@ -144,7 +144,7 @@ def load_data(config):
     end_date = config['dates']['endDate']
     df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
 
-    logger.info(f"Loaded {len(df)} observations from {start_date} to {end_date}")
+    logger.info(f"\nLoaded {len(df)} observations from {start_date} to {end_date}")
     return df
 
 
@@ -187,7 +187,7 @@ def create_comparative_plot(forecasts_dict, horizons, output_dir):
     plt.savefig(os.path.join(output_dir, 'comparative_volatility_forecasts.png'),
                 dpi=300, bbox_inches='tight')
     plt.close()
-    logger.info("Saved comparative volatility forecast plot")
+    logger.info("Saved comparative volatility forecasting plot")
 
 
 def create_individual_plots(model_name, forecasts, horizons, output_dir):
@@ -226,7 +226,7 @@ def create_individual_plots(model_name, forecasts, horizons, output_dir):
     plt.savefig(os.path.join(output_dir, f'{safe_name}_forecasts.png'),
                 dpi=300, bbox_inches='tight')
     plt.close()
-    logger.info(f"Saved individual forecast plot for {model_name}")
+    logger.info(f"Saved forecast plot for {model_name}")
 
 
 def save_forecast_results(forecasts_dict, horizons, output_dir):
