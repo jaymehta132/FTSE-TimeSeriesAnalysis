@@ -146,11 +146,14 @@ def rolling_window_backtest_optimized(returns, train_size, test_sizes, models):
         for test_size in test_sizes:
             results[(model.name, test_size)] = []
 
+    ct=0
     for start_idx in range(n_windows):
         train_end = start_idx + train_size
 
         train_data = returns[start_idx:train_end]
-
+        if ct==0:
+            print(train_data.shape)
+            ct+=1
         for model in models:
             success = model.fit(train_data)
             if not success:

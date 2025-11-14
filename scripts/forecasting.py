@@ -66,11 +66,9 @@ class ForecastModel:
         logger.info(f"Fitting {self.name}...")
 
         if 'ARMA(0,1)' in self.mean_spec:
-            mean_model = 'MA'
-            lags_q = 1
+            meanmod = 'MA'
         else:
-            mean_model = 'Zero'
-            lags_q = 0
+            meanmod = 'Zero'
 
         if 'GJR' in self.vol_spec:
             vol_model = 'Garch'
@@ -79,7 +77,7 @@ class ForecastModel:
             vol_model = 'Garch'
             p, q, o = 1, 1, 0  
 
-        if mean_model == 'MA':
+        if meanmod == 'MA':
             self.model = arch_model(
                 returns * 100,  
                 mean='ARX',
@@ -106,8 +104,8 @@ class ForecastModel:
     def forecast(self, horizon):
         forecasts = self.result.forecast(horizon=horizon, reindex=False)
 
-        mean_forecast = forecasts.mean.values[-1, :]  # Last row is the forecast
-        variance_forecast = forecasts.variance.values[-1, :]
+        m_forcast = forecasts.mean.values[-1, :]  # Last row is the forecast
+        v_forecast = forecasts.variance.values[-1, :]
 
         if self.dist == 't':
             nu = self.result.params.get('nu', 10)  # 10 doffs
@@ -122,13 +120,13 @@ class ForecastModel:
             lower_q = -1.96
             upper_q = 1.96
 
-        std_forecast = np.sqrt(variance_forecast)
-        lower_bound = mean_forecast + lower_q * std_forecast
-        upper_bound = mean_forecast + upper_q * std_forecast
+        std_forecast = np.sqrt(v_forecast)
+        lower_bound = m_forcast + lower_q * std_forecast
+        upper_bound = m_forcast + upper_q * std_forecast
 
         return {
-            'mean': mean_forecast / 100,
-            'variance': variance_forecast / 10000,
+            'mean': m_forcast / 100,
+            'variance': v_forecast / 10000,
             'std': std_forecast / 100,
             'lower_95': lower_bound / 100,
             'upper_95': upper_bound / 100
@@ -140,11 +138,11 @@ def load_data(config):
     df = pd.read_csv(data_path, parse_dates=['Date'])
     df = df.sort_values('Date').reset_index(drop=True)
 
-    start_date = config['dates']['startDate']
+    sd = config['dates']['startDate']
     end_date = config['dates']['endDate']
-    df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+    df = df[(df['Date'] >= sd) & (df['Date'] <= end_date)]
 
-    logger.info(f"\nLoaded {len(df)} observations from {start_date} to {end_date}")
+    logger.info(f"\nLoaded {len(df)} observations from {sd} to {end_date}")
     return df
 
 
@@ -309,7 +307,7 @@ def main():
         )
     ]
 
-    forecasts_dict = {}
+    dict_fcasts = {}
 
     for model in models:
         logger.info("\n" + "-" * 80)
@@ -331,18 +329,18 @@ def main():
                 logger.info(f"  Mean return ({horizon}-day): {forecast_data['mean'][-1]*10000:.2f} bps")
                 logger.info(f"  Volatility ({horizon}-day): {forecast_data['std'][-1]*100:.4f}%")
 
-        forecasts_dict[model.name] = model_forecasts
+        dict_fcasts[model.name] = model_forecasts
 
     logger.info("\n" + "=" * 80)
     logger.info("Saving rrsults...")
     logger.info("=" * 80)
 
-    df_results = save_forecast_results(forecasts_dict, horizons, output_dir)
+    df_results = save_forecast_results(dict_fcasts, horizons, output_dir)
 
     logger.info("\nCreating visualizations...")
-    create_comparative_plot(forecasts_dict, horizons, output_dir)
+    create_comparative_plot(dict_fcasts, horizons, output_dir)
 
-    for model_name, forecasts in forecasts_dict.items():
+    for model_name, forecasts in dict_fcasts.items():
         create_individual_plots(model_name, forecasts, horizons, output_dir)
 
     logger.info("\n" + "=" * 80)

@@ -24,51 +24,49 @@ metrics = {
     'qlike': 'QLIKE (Volatility Loss)'
 }
 
-test_sizes = [1, 5, 10, 20]
-train_sizes = [50, 75, 100, 125, 150, 200]
+tst_sz = [1, 5, 10, 20]
+tran_sz = [50, 75, 100, 125, 150, 200]
 models = ['GJR-GARCH-Skewed-t','GJR-GARCH-t', 'GARCH-t']
 
 print("\nCreating filtered heatmaps ...")
 print("=" * 80)
 
-for metric_col, metric_name in metrics.items():
-    for test_size in test_sizes:
+for mcol, metric_name in metrics.items():
+    for test_size in tst_sz:
         subset = df_filtered[df_filtered['test_size'] == test_size].copy()
 
         pivot = subset.pivot_table(
-            values=metric_col,
+            values=mcol,
             index='model',
             columns='train_size',
             aggfunc='mean'
         )
-        if metric_col == 'mae' or metric_col == 'mse_vol' or metric_col == 'rmse':
+        if mcol == 'mae' or mcol == 'mse_vol' or mcol == 'rmse':
             pivot.loc['GJR-GARCH-Skewed-t', 50] = np.nan
             print(pivot)
 
 
-        pivot = pivot.reindex(index=models, columns=train_sizes)
+        pivot = pivot.reindex(index=models, columns=tran_sz)
 
         fig, ax = plt.subplots(figsize=(12, 4))
 
-        if metric_col == 'direction_accuracy':
-            pivot_display = pivot * 100
+        if mcol == 'direction_accuracy':
+            pivot = pivot * 100
             fmt = '.2f'
             cmap = 'RdYlGn'  
-        elif metric_col in ['rmse', 'mae', 'qlike']:
-            pivot_display = pivot
-            fmt = '.6f' if metric_col in ['rmse', 'mae', 'mse_vol'] else '.4f'
+        elif mcol in ['rmse', 'mae', 'qlike']:
+            fmt = '.6f' if mcol in ['rmse', 'mae', 'mse_vol'] else '.4f'
             cmap = 'RdYlGn_r'  
-        elif metric_col == 'mse_vol':
-            pivot_display = pivot*10000  
+        elif mcol == 'mse_vol':
+            pivot = pivot*10000  
             fmt = '.6f'
             cmap = 'RdYlGn_r'  
         else:
-            pivot_display = pivot
             fmt = '.6f'
             cmap = 'RdYlGn_r'
 
         sns.heatmap(
-            pivot_display,
+            pivot,
             annot=True,
             fmt=fmt,
             cmap=cmap,
@@ -88,7 +86,7 @@ for metric_col, metric_name in metrics.items():
 
         plt.tight_layout()
 
-        filename = f"heatmap_{metric_col}_test{test_size}_filtered.png"
+        filename = f"heatmap_{mcol}_test{test_size}_filtered.png"
         filepath = output_dir / filename
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close()
