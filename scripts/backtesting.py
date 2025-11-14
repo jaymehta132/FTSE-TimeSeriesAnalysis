@@ -1,21 +1,3 @@
-"""
-Rolling Window Backtesting for FTSE 100 Time Series Analysis
-
-Tests three candidate models across multiple train/test size configurations:
-- Train sizes: [50, 75, 100, 125, 150, 200] days
-- Test sizes: [1, 5, 10, 20] days ahead
-- Total: 24 configurations
-
-Models:
-1. ARMA(0,1) + GJR-GARCH(1,1) - Skewed-t
-2. ARMA(0,1) + GJR-GARCH(1,1) - Student-t
-3. ARMA(0,1) + GARCH(1,1) - Student-t
-
-Metrics:
-- Returns: RMSE, MAE, Direction Accuracy
-- Volatility: MSE, QLIKE
-"""
-
 import os
 import warnings
 import numpy as np
@@ -29,6 +11,7 @@ import yaml
 from datetime import datetime
 from pathlib import Path
 from tqdm import tqdm
+import random
 
 warnings.filterwarnings("ignore")
 sns.set_style("whitegrid")
@@ -37,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 def setup_logging(log_dir="logs", log_level=logging.INFO):
-    """Setup logging configuration"""
     log_path = Path(log_dir)
     log_path.mkdir(exist_ok=True)
 
@@ -62,25 +44,20 @@ def setup_logging(log_dir="logs", log_level=logging.INFO):
 
 
 def load_config(config_path="config.yaml"):
-    """Load configuration file"""
     with open(config_path, "r") as file:
         return yaml.safe_load(file)
 
 
 def seed_everything(seed_value=42):
-    """Set random seeds for reproducibility"""
-    import random
     random.seed(seed_value)
     np.random.seed(seed_value)
 
 
 def load_data(config):
-    """Load preprocessed FTSE data"""
     data_path = config['data']['preprocessedDataPath']
     df = pd.read_csv(data_path, parse_dates=['Date'])
     df = df.sort_values('Date').reset_index(drop=True)
 
-    # Filter to 2005-2007
     start_date = config['dates']['startDate']
     end_date = config['dates']['endDate']
     df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
@@ -90,8 +67,6 @@ def load_data(config):
 
 
 class ARMAGARCHModel:
-    """Wrapper for ARMA-GARCH model fitting and forecasting"""
-
     def __init__(self, name, vol_type, dist):
         self.name = name
         self.vol_type = vol_type  # 'garch' or 'gjr-garch'
@@ -100,89 +75,52 @@ class ARMAGARCHModel:
         self.result = None
 
     def fit(self, returns):
-        """Fit model to returns"""
-        try:
-            # Determine volatility specification
-            if 'GJR' in self.vol_type:
-                vol_model = 'Garch'
-                p, q, o = 1, 1, 1  # GJR-GARCH(1,1)
-            else:
-                vol_model = 'Garch'
-                p, q, o = 1, 1, 0  # GARCH(1,1)
+        if 'GJR' in self.vol_type:
+            vol_model = 'Garch'
+            p, q, o = 1, 1, 1  # GJR-GARCH(1,1)
+        else:
+            vol_model = 'Garch'
+            p, q, o = 1, 1, 0  # GXRCH(1,1)
+        self.model = arch_model(
+            returns * 100, 
+            mean='ARX',
+            lags=0,
+            vol=vol_model,
+            p=p, o=o, q=q,
+            dist=self.dist
+        )
 
-            # Create model with MA(1) mean
-            self.model = arch_model(
-                returns * 100,  # Scale returns
-                mean='ARX',
-                lags=0,
-                vol=vol_model,
-                p=p, o=o, q=q,
-                dist=self.dist
-            )
-
-            self.result = self.model.fit(disp='off', show_warning=False)
-            return True
-
-        except Exception as e:
-            logger.warning(f"Failed to fit {self.name}: {e}")
-            return False
+        self.result = self.model.fit(disp='off', show_warning=False)
+        return True
 
     def forecast_multi_step(self, horizon):
-        """Generate multi-step ahead forecasts"""
-        if self.result is None:
-            return None
+        forecasts = self.result.forecast(horizon=horizon, reindex=False)
 
-        try:
-            forecasts = self.result.forecast(horizon=horizon, reindex=False)
+        mean_forecast = forecasts.mean.values[-1, :]  
+        variance_forecast = forecasts.variance.values[-1, :]
 
-            # Extract forecasts
-            mean_forecast = forecasts.mean.values[-1, :]  # Last row
-            variance_forecast = forecasts.variance.values[-1, :]
+        return {
+            'mean': mean_forecast / 100,
+            'variance': variance_forecast / 10000
+        }
 
-            # Scale back (we scaled by 100)
-            return {
-                'mean': mean_forecast / 100,
-                'variance': variance_forecast / 10000
-            }
-
-        except Exception as e:
-            logger.warning(f"Forecast failed for {self.name}: {e}")
-            return None
 
 
 def compute_metrics(actual_returns, forecast_returns, actual_variance_proxy, forecast_variance):
-    """
-    Compute forecast accuracy metrics
-
-    Args:
-        actual_returns: array of actual returns
-        forecast_returns: array of forecast returns
-        actual_variance_proxy: squared actual returns (realized variance proxy)
-        forecast_variance: forecast variance
-
-    Returns:
-        dict with metrics
-    """
     metrics = {}
 
-    # Returns metrics
     errors = actual_returns - forecast_returns
 
     metrics['rmse'] = np.sqrt(np.mean(errors ** 2))
     metrics['mae'] = np.mean(np.abs(errors))
 
-    # Direction accuracy (% of correct sign predictions)
     correct_direction = np.sum(np.sign(actual_returns) == np.sign(forecast_returns))
     metrics['direction_accuracy'] = correct_direction / len(actual_returns)
 
-    # Volatility metrics
     vol_errors = actual_variance_proxy - forecast_variance
 
     metrics['mse_vol'] = np.mean(vol_errors ** 2)
 
-    # QLIKE (Quasi-Likelihood) - robust volatility forecast metric
-    # QLIKE = (actual_var / forecast_var) - log(actual_var / forecast_var) - 1
-    # Avoid division by zero
     valid_idx = (actual_variance_proxy > 1e-10) & (forecast_variance > 1e-10)
     if np.sum(valid_idx) > 0:
         ratio = actual_variance_proxy[valid_idx] / forecast_variance[valid_idx]
@@ -195,21 +133,6 @@ def compute_metrics(actual_returns, forecast_returns, actual_variance_proxy, for
 
 
 def rolling_window_backtest_optimized(returns, train_size, test_sizes, models):
-    """
-    Perform rolling window backtest - OPTIMIZED VERSION
-
-    Trains each model ONCE per window, then generates forecasts for all test_sizes.
-    This avoids redundant model fitting.
-
-    Args:
-        returns: full time series of returns
-        train_size: size of training window
-        test_sizes: LIST of test window sizes (forecast horizons)
-        models: list of model objects to test
-
-    Returns:
-        dict with results for each (model, test_size) combination
-    """
     max_test_size = max(test_sizes)
     n = len(returns)
     n_windows = n - train_size - max_test_size + 1
@@ -218,45 +141,35 @@ def rolling_window_backtest_optimized(returns, train_size, test_sizes, models):
         logger.warning(f"Not enough data for train_size={train_size}, max_test_size={max_test_size}")
         return {}
 
-    # Initialize results storage: {(model_name, test_size): [metrics_list]}
     results = {}
     for model in models:
         for test_size in test_sizes:
             results[(model.name, test_size)] = []
 
-    # Rolling window loop
     for start_idx in range(n_windows):
         train_end = start_idx + train_size
 
-        # Get training data
         train_data = returns[start_idx:train_end]
 
-        # Test each model
         for model in models:
-            # Fit model ONCE on this training window
             success = model.fit(train_data)
             if not success:
                 continue
 
-            # Generate forecasts for ALL test_sizes from this single fitted model
             for test_size in test_sizes:
                 test_end = train_end + test_size
                 if test_end > n:
                     continue
 
-                # Get test data
                 test_data = returns[train_end:test_end]
 
-                # Generate forecasts
                 forecasts = model.forecast_multi_step(test_size)
                 if forecasts is None:
                     continue
 
-                # Compute metrics
                 forecast_returns = forecasts['mean'][:len(test_data)]
                 forecast_variance = forecasts['variance'][:len(test_data)]
 
-                # Realized variance proxy: squared returns
                 actual_variance_proxy = test_data ** 2
 
                 metrics = compute_metrics(
@@ -272,14 +185,6 @@ def rolling_window_backtest_optimized(returns, train_size, test_sizes, models):
 
 
 def aggregate_metrics(results):
-    """Aggregate metrics across all rolling windows
-
-    Args:
-        results: dict with keys (model_name, test_size) and values as list of metrics
-
-    Returns:
-        dict with keys (model_name, test_size) and aggregated metrics
-    """
     aggregated = {}
 
     for (model_name, test_size), metrics_list in results.items():
@@ -294,13 +199,11 @@ def aggregate_metrics(results):
             }
             continue
 
-        # Convert list of dicts to dict of lists
         metrics_dict = {key: [] for key in metrics_list[0].keys()}
         for m in metrics_list:
             for key, val in m.items():
                 metrics_dict[key].append(val)
 
-        # Compute averages
         aggregated[(model_name, test_size)] = {
             key: np.nanmean(vals) for key, vals in metrics_dict.items()
         }
@@ -310,21 +213,6 @@ def aggregate_metrics(results):
 
 
 def run_backtesting_grid(df, train_sizes, test_sizes, model_specs):
-    """
-    Run backtesting across all train/test size combinations - OPTIMIZED
-
-    For each train_size, fits models ONCE per window and generates forecasts
-    for all test_sizes. This is much faster than the naive approach.
-
-    Args:
-        df: dataframe with returns
-        train_sizes: list of training window sizes
-        test_sizes: list of test window sizes
-        model_specs: list of (name, vol_type, dist) tuples
-
-    Returns:
-        DataFrame with all results
-    """
     returns = df['Log Returns'].values
     all_results = []
 
@@ -336,20 +224,15 @@ def run_backtesting_grid(df, train_sizes, test_sizes, model_specs):
         logger.info(f"Train size {train_idx}/{len(train_sizes)}: {train_size} days")
         logger.info(f"{'='*80}")
 
-        # Create model instances
         models = [
             ARMAGARCHModel(name, vol_type, dist)
             for name, vol_type, dist in model_specs
         ]
 
-        # Run rolling window backtest for THIS train_size across ALL test_sizes
-        # This fits each model ONCE per window, then forecasts for all horizons
         results = rolling_window_backtest_optimized(returns, train_size, test_sizes, models)
 
-        # Aggregate metrics
         agg_results = aggregate_metrics(results)
 
-        # Store results
         for (model_name, test_size), metrics in agg_results.items():
             all_results.append({
                 'model': model_name,
@@ -363,7 +246,6 @@ def run_backtesting_grid(df, train_sizes, test_sizes, model_specs):
                 'qlike': metrics.get('qlike', np.nan)
             })
 
-        # Log completion
         n_windows = agg_results.get((model_specs[0][0], test_sizes[0]), {}).get('n_windows', 0)
         logger.info(f"Completed {n_windows} rolling windows for train_size={train_size}")
         logger.info(f"Generated forecasts for {len(test_sizes)} horizons from each window")
@@ -372,8 +254,6 @@ def run_backtesting_grid(df, train_sizes, test_sizes, model_specs):
 
 
 def create_heatmaps(df_results, output_dir):
-    """Create 2D heatmaps for each metric and test_size"""
-
     metrics = ['rmse', 'mae', 'direction_accuracy', 'mse_vol', 'qlike']
     metric_labels = {
         'rmse': 'RMSE (Returns)',
@@ -388,25 +268,20 @@ def create_heatmaps(df_results, output_dir):
 
     for metric in metrics:
         for test_size in test_sizes:
-            # Filter data
             subset = df_results[df_results['test_size'] == test_size]
 
-            # Create pivot table: rows=models, columns=train_sizes
             pivot = subset.pivot(index='model', columns='train_size', values=metric)
 
-            # Create heatmap
             fig, ax = plt.subplots(figsize=(12, 8))
 
-            # For direction accuracy, multiply by 100 for percentage
             if metric == 'direction_accuracy':
                 pivot = pivot * 100
 
-            # Choose colormap (lower is better for error metrics, higher is better for accuracy)
             if metric == 'direction_accuracy':
-                cmap = 'RdYlGn'  # Green for higher accuracy
+                cmap = 'RdYlGn'  # Green - heigher acc
                 fmt = '.1f'
             else:
-                cmap = 'RdYlGn_r'  # Green for lower error
+                cmap = 'RdYlGn_r'  # Green 0 lower err
                 fmt = '.4f'
 
             sns.heatmap(pivot, annot=True, fmt=fmt, cmap=cmap,
@@ -428,9 +303,6 @@ def create_heatmaps(df_results, output_dir):
 
 
 def create_summary_plots(df_results, output_dir):
-    """Create summary comparison plots"""
-
-    # 1. Model comparison across test sizes (average across train sizes)
     metrics = ['rmse', 'mae', 'direction_accuracy', 'mse_vol', 'qlike']
     models = sorted(df_results['model'].unique())
 
@@ -450,7 +322,6 @@ def create_summary_plots(df_results, output_dir):
             subset = df_results[df_results['model'] == model]
             avg_by_test = subset.groupby('test_size')[metric].mean()
 
-            # Scale direction accuracy to percentage
             if metric == 'direction_accuracy':
                 avg_by_test = avg_by_test * 100
 
@@ -471,7 +342,6 @@ def create_summary_plots(df_results, output_dir):
         ax.grid(True, alpha=0.3, linestyle='--')
         ax.set_title(f'{metric.upper()}', fontsize=12, fontweight='bold')
 
-    # Remove unused subplot
     fig.delaxes(axes[1, 2])
 
     plt.tight_layout()
@@ -482,7 +352,6 @@ def create_summary_plots(df_results, output_dir):
 
 
 def main():
-    # Setup
     setup_logging(log_dir="logs", log_level=logging.INFO)
     config = load_config()
     seed_everything(config.get("seed", 42))
@@ -491,14 +360,11 @@ def main():
     logger.info("FTSE 100 Rolling Window Backtesting")
     logger.info("=" * 80)
 
-    # Create output directory
     output_dir = "results/backtesting"
     os.makedirs(output_dir, exist_ok=True)
 
-    # Load data
     df = load_data(config)
 
-    # Define configurations
     train_sizes = [50, 75, 100, 125, 150, 200]
     test_sizes = [1, 5, 10, 20]
 
@@ -506,7 +372,6 @@ def main():
     logger.info(f"Test sizes: {test_sizes}")
     logger.info(f"Total configurations: {len(train_sizes) * len(test_sizes)}")
 
-    # Define models
     model_specs = [
         ('GJR-GARCH-Skewed-t', 'GJR-GARCH', 'skewt'),
         ('GJR-GARCH-t', 'GJR-GARCH', 't'),
@@ -515,31 +380,26 @@ def main():
 
     logger.info(f"Models to test: {[spec[0] for spec in model_specs]}")
 
-    # Run backtesting grid
     df_results = run_backtesting_grid(df, train_sizes, test_sizes, model_specs)
 
-    # Save results
     results_path = os.path.join(output_dir, 'backtesting_results.csv')
     df_results.to_csv(results_path, index=False)
     logger.info(f"\nSaved results to: {results_path}")
 
-    # Create visualizations
     logger.info("\nCreating heatmaps...")
     create_heatmaps(df_results, output_dir)
 
     logger.info("\nCreating summary plots...")
     create_summary_plots(df_results, output_dir)
 
-    # Print summary statistics
     logger.info("\n" + "=" * 80)
     logger.info("BACKTESTING COMPLETED")
     logger.info("=" * 80)
 
-    # Best model by metric (averaged across all configurations)
     ranking_path = os.path.join(output_dir, "model_ranking.txt")
     with open(ranking_path, "w") as f:
         f.write("\n" + "=" * 80 + "\n")
-        f.write("OVERALL MODEL RANKING (Average Across All Configurations)\n")
+        f.write("OVERALL MODEL RANKING\n")
         f.write("=" * 80 + "\n")
 
         for metric in ['rmse', 'mae', 'direction_accuracy', 'mse_vol', 'qlike']:
