@@ -1,9 +1,38 @@
 # FTSE-TimeSeriesAnalysis
 
-Instructions for running-
+## Instructions for running-
+For running the scripts, ensure you have a python virtual environment with Python 3.12+. Given below are the steps to make a venv. Ensure Python 3.12 is installed. 
+```bash
+python3.12 -m venv ec602
+```
+Here `ec602` is the name of the virtual environment. This will create a directory of the name of the environment in the working directory. To activate the environment, follow the steps given below
+```bash
+source ec602/bin/activate # For macOS/Linux
+.\ec602\Scripts\activate # For Windows Powershell
+```
+To deactivate the environment, run
+```bash
+deactivate # For macOS/Linux/Windows Powershell
+```  
+Once you are inside the environment, run the following command to install all the necessary libraries
+```bash
+pip install -r requirements.txt
+```
+### For running Data Preprocessing, EDA and Analysis scripts:
+---
+Make sure you are in this directory where the `scripts`, `results` and `data` are present.
+```bash
+python -m scripts.dataPreprocessing
+python -m scripts.EDA
+python -m scripts.analysis
+```
+- Data Preprocessing script preprocesses the raw data and produces the FTSE_PreprocessedData.csv file which contains the columns `Prices`, `Returns` and `Log Returns`.
+- EDA script performs exploratory data analysis on the preprocessed data. It runs different tests on the `Returns` and `Log Returns` columns to check for stationarity and other properties like Heteroskedasticity.
+- Analysis script tests a simple model and plots different metrics with respect to the results of the model.
 
-For running the model selection part
-___
+Results for `EDA.py` are stored in `results/eda/` while results for `analysis.py` are stored in `results/analysis/`. Logs are created and stored in the `logs/` folder.
+### For running the model selection part
+---
 Make sure you are in the `scripts/` directory. Ensure that you have set up the dependencies from requirements.txt on your system an run the following two commands: 
 
 ```
@@ -13,22 +42,10 @@ python3 advanced_model_grid_search.py
 
 Plots and results will be stored in `results/model_grid_outputs/` and `results/model_grid_advanced_outputs/` respectively.
 
-For running forecasting part
+### For running forecasting part
 ---
 Make sure you are in this directory where `scripts`, `results` and `data` are
 ```bash
-python3 -m venv myenv
-source venv/bin/activate
-pip install numpy
-pip install pandas
-pip install matplotlib
-pip install seaborn
-pip install arch
-pip install scipy
-pip install logging
-pip install pyyaml
-pip install tqdm
-
 python3 scripts/forecasting.py
 python3 scripts/backtesting.py
 python3 scripts/replotting.py
