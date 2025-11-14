@@ -334,7 +334,7 @@ def main():
         forecasts_dict[model.name] = model_forecasts
 
     logger.info("\n" + "=" * 80)
-    logger.info("Saving results...")
+    logger.info("Saving rrsults...")
     logger.info("=" * 80)
 
     df_results = save_forecast_results(forecasts_dict, horizons, output_dir)
@@ -367,7 +367,7 @@ def main():
     print("\n")
     print(summary_display.round(2).to_string())
     print("\n" + "=" * 80)
-    print("Note: Returns shown in basis points (1 bp = 0.01%)")
+    print("Retrns shown in basis points (1 bp = 0.01%)")
     print("=" * 80)
 
 

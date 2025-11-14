@@ -93,8 +93,7 @@ for metric_col, metric_name in metrics.items():
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close()
 
-        print(f"✓ Saved: {filename}")
+        print(f"Saved: {filename}")
 
 print("=" * 80)
 print(f"\nAll filtered heatmaps saved to: {output_dir}")
-print("\nNow you can clearly see the differences between GJR-GARCH-t and GARCH-t!")
