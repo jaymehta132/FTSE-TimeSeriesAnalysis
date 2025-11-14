@@ -536,23 +536,25 @@ def main():
     logger.info("=" * 80)
 
     # Best model by metric (averaged across all configurations)
-    print("\n" + "=" * 80)
-    print("OVERALL MODEL RANKING (Average Across All Configurations)")
-    print("=" * 80)
+    ranking_path = os.path.join(output_dir, "model_ranking.txt")
+    with open(ranking_path, "w") as f:
+        f.write("\n" + "=" * 80 + "\n")
+        f.write("OVERALL MODEL RANKING (Average Across All Configurations)\n")
+        f.write("=" * 80 + "\n")
 
-    for metric in ['rmse', 'mae', 'direction_accuracy', 'mse_vol', 'qlike']:
-        print(f"\n{metric.upper()}:")
-        ranking = df_results.groupby('model')[metric].mean().sort_values(
-            ascending=(metric != 'direction_accuracy')  # Higher is better for accuracy
-        )
-        for rank, (model, score) in enumerate(ranking.items(), 1):
-            marker = ""
-            if metric == 'direction_accuracy':
-                print(f"  {rank}. {marker} {model:25s} {score*100:6.2f}%")
-            else:
-                print(f"  {rank}. {marker} {model:25s} {score:.6f}")
+        for metric in ['rmse', 'mae', 'direction_accuracy', 'mse_vol', 'qlike']:
+            f.write(f"\n{metric.upper()}:\n")
+            ranking = df_results.groupby('model')[metric].mean().sort_values(
+                ascending=(metric != 'direction_accuracy')  # Higher is better for accuracy
+            )
+            for rank, (model, score) in enumerate(ranking.items(), 1):
+                marker = ""
+                if metric == 'direction_accuracy':
+                    f.write(f"  {rank}. {marker} {model:25s} {score*100:6.2f}%\n")
+                else:
+                    f.write(f"  {rank}. {marker} {model:25s} {score:.6f}\n")
 
-    print("\n" + "=" * 80)
+        f.write("\n" + "=" * 80 + "\n")
     logger.info(f"\nResults saved to: {output_dir}")
     logger.info("=" * 80)
 
