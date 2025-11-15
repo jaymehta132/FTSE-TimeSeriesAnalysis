@@ -53,8 +53,8 @@ python3 scripts/forecasting.py
 python3 scripts/backtesting.py
 python3 scripts/replotting.py
 ```
-- `forecasting.py` - trains the models chosen (as mentioned in the report) on the entire dataset and creates sample forecasts for analysis
-- `backtesting.py` - Analyses the models rigorously on a rolling window basis and outputs the average values for proper comparisons
-- `replotting.py` - Takes the output of `backtesting.py` and replots the plots to make them more visually clear - since the GJR-Garch-Skewed-t model fails on training size 50
+- `forecasting.py` - trains the models chosen (as mentioned in the report) on the entire dataset and creates sample forecasts for analysis and stores it in `results/forecasting`
+- `backtesting.py` - Analyses the models rigorously on a rolling window basis and outputs the average values for proper comparisons and stores it in `results/backtesting`
+- `replotting.py` - Takes the output of `backtesting.py` and replots the plots to make them more visually clear - since the GJR-Garch-Skewed-t model fails on training size 50 and stores it in `results/backtesting/filtered_heatmaps`
 
 Logs will be generated and stored in `logs/` and the plots and data will be stored in `results/`
