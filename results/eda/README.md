@@ -1,7 +1,7 @@
 # Distribution summary — Log Returns & Returns
 
 ## Overview
-This document summarizes how the dataset is distributed using basic descriptive statistics for both log returns and simple returns. Replace or extend the commentary below with plots, tests, and findings specific to your analysis.
+This document summarizes how the dataset is distributed using basic descriptive statistics for both log returns and simple returns. It also contains results of various tests conducted on the data.
 
 ## Key statistics
 - Log returns
@@ -17,7 +17,7 @@ This document summarizes how the dataset is distributed using basic descriptive 
     - Skewness: -0.37336
     - Kurtosis: 5.71118 (Excess kurtosis: 2.71118)
 
-## Quick interpretation
+## Interpretation
 - Shape: Both series are moderately negatively skewed (skewness < 0), indicating a longer left tail and a tendency for larger negative moves than positive ones.
 - Tails: Excess kurtosis ≈ 2.7–2.8 (kurtosis ≈ 5.7–5.8) ⇒ clearly leptokurtic / heavy-tailed relative to a normal distribution.
 - Center and spread: Means are close to zero and below the medians, consistent with the negative skew. Standard deviations are small (~0.84%).
@@ -67,11 +67,6 @@ The Q–Q plots for both **Returns** and **Log Returns** were compared against a
 - The t-distribution successfully captures the heavy tails that our earlier analysis (high kurtosis) revealed.
 - A t-distribution with df = 5 allows fatter tails than the normal distribution — exactly what our data needs.
 
-<!-- **Suggested README snippet**
-- Include the Q–Q plot image next to this text (e.g., `results/qq_plot_returns.png` and `results/qq_plot_log_returns.png`) so readers can visually confirm the tail deviation discussed above. -->
-
-### Short takeaway
-> Both Returns and Log Returns are near-normal in the center but show **significant fat tails** and **mild negative skewness**. Normal assumptions will understate extreme-event risk; use fat-tailed / volatility-aware models for more realistic inference and risk estimates.
 
 ## Volatility Clustering
 
@@ -101,16 +96,16 @@ Volatility clustering refers to the tendency of large changes in returns (positi
 > The presence of significant autocorrelation in squared returns implies that the magnitude of returns is not random.  
 > High-volatility periods follow high-volatility periods, and low-volatility periods follow low-volatility periods, a stylized fact of financial time series.
 
-### Statistical Test Results — Interpretation & Analysis
+## Statistical Test Results — Interpretation & Analysis
 
 Below are concise interpretations of the reported test statistics (ADF, ARCH-LM, and Ljung–Box) for **Price**, **Returns**, and **Log Returns**.
 
 ---
 
-## Augmented Dickey–Fuller (ADF) test — stationarity
+### Augmented Dickey–Fuller (ADF) test — stationarity
 - **Price**
   - Test statistic = **−1.6003**, p-value = **0.4834**  
-  **Interpretation:** Fail to reject the null of a unit root. The price series is **non-stationary**. This is expected for level price series and means you should **not** model prices directly in most time-series frameworks that assume stationarity.
+  **Interpretation:** Fail to reject the null of a unit root. The price series is **non-stationary**. This is expected for level price series and means we should **not** model prices directly.
 - **Returns** and **Log Returns**
   - Test statistics = **≈ −30.69** and **−30.66**, p-values = **0.0**  
   **Interpretation:** Strongly reject the null of a unit root. Both returns and log-returns are **stationary**. This validates using returns (or log-returns) for modelling and inference (e.g., ARMA/GARCH) rather than raw prices.
@@ -119,7 +114,7 @@ Below are concise interpretations of the reported test statistics (ADF, ARCH-LM,
 
 ---
 
-## ARCH-LM test — conditional heteroskedasticity (volatility clustering)
+### ARCH-LM test — conditional heteroskedasticity (volatility clustering)
 - **Returns**
   - LM statistic = **151.71**, p-value ≈ **1.66e-27**
 - **Log Returns**
@@ -127,11 +122,11 @@ Below are concise interpretations of the reported test statistics (ADF, ARCH-LM,
 
 **Interpretation:** The p-values are essentially zero, so we **strongly reject** the null hypothesis of no ARCH effects. There is **clear evidence of conditional heteroskedasticity** (i.e., volatility clustering) in both series.
 
-**Practical consequence:** Variance is time-varying. You should model the conditional variance explicitly (e.g., ARCH, GARCH, or GARCH variants). Using homoskedastic error assumptions will lead to incorrect standard errors and poor risk forecasts.
+**Practical consequence:** Variance is time-varying. We should model the conditional variance explicitly (e.g., ARCH, GARCH, or GARCH variants). Using homoskedastic error assumptions will lead to incorrect standard errors and poor risk forecasts.
 
 ---
 
-## Ljung–Box test — autocorrelation (serial dependence)
+### Ljung–Box test — autocorrelation (serial dependence)
 - **Returns**
   - LB statistic = **56.94**, p-value = **0.0400** (lags = 40)
 - **Log Returns**
@@ -147,55 +142,7 @@ It’s common for the Ljung–Box test to flag significance at large lags due to
 
 **Practical consequence:**
 - There is **no strong short-term autocorrelation**, but some mild longer-lag dependence exists.
-- You may still include **ARMA terms** if low-lag ACF/PACF plots show noticeable spikes, but the main time dependence likely comes from the **conditional variance (volatility)** rather than the mean.
-- After fitting a GARCH-type model, you should re-run the Ljung–Box test on **standardized residuals** — they should become insignificant if the model successfully captures serial dependence in volatility.
+- After fitting a GARCH-type model, we should re-run the Ljung–Box test on **standardized residuals** — they should become insignificant if the model successfully captures serial dependence in volatility.
 
 
----
 
-### Overall synthesis & recommended next steps
-
-1. **Use returns (or log-returns) not prices** — prices are nonstationary; returns/log-returns are stationary and appropriate for modeling.
-2. **Model the conditional mean and variance separately:**
-   - Fit an ARMA (or simple AR) model for the conditional mean if ACF/PACF indicate serial correlation.
-   - Fit a GARCH-family model for the conditional variance to capture the significant ARCH effects (e.g., GARCH(1,1)). Consider GARCH-t (or Student-t residuals) because earlier diagnostics showed heavy tails.
-3. **Diagnostic checks after fitting models:**
-   - Examine standardized residuals and their ACF/PACF (should look like white noise).
-   - Test squared standardized residuals for remaining ARCH effects (they should be insignificant if the GARCH model is adequate).
-   - Check Q–Q plots of residuals vs chosen innovation distribution.
-4. **Risk measurement:** For VaR/ES, prefer volatility-aware approaches (GARCH-based or EVT) over Gaussian historical VaR.
-5. **Robust inference:** Until heteroskedasticity is modeled, avoid using homoskedastic standard errors; use robust (heteroskedasticity-consistent) standard errors if you need inference from simple regressions.
-
----
-
-### Short summary (one-liner)
-> Price series is non-stationary; **returns and log-returns are stationary**. Both return series exhibit **strong ARCH effects (volatility clustering)** and **mild but statistically significant serial correlation** (Ljung–Box), so model the mean with ARMA terms as needed and the variance with a GARCH-family model (consider Student-t innovations to accommodate heavy tails).
-
-
-## Recommended diagnostics to include
-- Visual
-    - Histogram + KDE overlay
-    - Q–Q plot vs. normal
-    - Boxplot and zoom on tails
-- Statistical tests
-    - Jarque–Bera (for skewness/kurtosis)
-    - Shapiro–Wilk or Anderson–Darling (if sample size appropriate)
-- Time-series checks
-    - ACF/PACF for returns and squared returns (volatility clustering)
-    - Ljung–Box on residuals and squared residuals
-    - ADF / KPSS for stationarity
-
-## Modeling / practical implications
-- Use heavy-tail / skewed error distributions (Student-t, skewed-t, GED) for likelihood-based models.
-- For volatility modeling, consider GARCH-family models to capture clustering and conditional heteroskedasticity.
-- Use robust estimators or bootstrap-based inference because normal-based standard errors may be unreliable.
-- For risk measures, compute empirical and parametric VaR/ES using fat-tailed fits.
-
-## Suggested next steps (checklist)
-- [ ] Generate histogram + QQ plot and save to results/figures
-- [ ] Run Jarque–Bera and report p-value
-- [ ] Test for autocorrelation and conditional heteroskedasticity
-- [ ] Fit candidate distributions (normal, t, skew-t) and compare AIC/BIC
-- [ ] Document findings and modelling choices in this README
-
-Notes: Replace the above template commentary with specific plot outputs, p-values, and model selection details as you run the diagnostics.
