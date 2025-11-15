@@ -1,0 +1,20 @@
+data:
+  rawDataPath: "data/FTSE_RawData.csv"
+  preprocessedDataPath: "data/FTSE_PreprocessedData.csv"
+
+results:
+  edaResultsDir: "results/eda"
+  analysisResultsDir: "results/analysis"
+
+dates:
+  startDate: "2005-01-01"
+  endDate: "2007-12-31"
+
+seed: 42
+
+model:
+  arma_garch:
+    p: 1
+    q: 1
+    dist: "t"
+    lags: 0
